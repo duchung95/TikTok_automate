@@ -110,6 +110,7 @@ def filter_rows(rows, variant_map, size_fix, color_fix):
             "variant_id":      vid,
             "quantity":        row.get("Quantity", "1").strip(),
             "status_note":     "" if vid else "❌ Không có Variant ID. Phải làm order thủ công.",
+            "partial_lock":    False,
             "phone":           digits,
             "state":           state,
             "address1":        row.get("Ship to address",  row.get("Address line 1", "")).strip(),
@@ -120,7 +121,31 @@ def filter_rows(rows, variant_map, size_fix, color_fix):
             "design_front":    "",
             "design_back":     "",
         })
+
+    mark_partial_orders(items)
     return items
+
+
+def mark_partial_orders(items):
+    """
+    For any order_id where at least one item has no variant_id,
+    mark ALL items in that order as partial_lock=True so the entire
+    order is blocked from export — no partial orders allowed.
+    """
+    from collections import defaultdict
+    order_has_missing = defaultdict(bool)
+    for item in items:
+        if not item["variant_id"]:
+            order_has_missing[item["order_id"]] = True
+
+    for item in items:
+        if order_has_missing[item["order_id"]] and item["variant_id"]:
+            # This item has a variant_id but a sibling in the same order doesn't
+            item["partial_lock"] = True
+            item["status_note"]  = (
+                "🟠 Đơn hàng có sản phẩm khác chưa có Variant ID. "
+                "Không thể xuất một phần đơn hàng."
+            )
 
 # ─── App ────────────────────────────────────────────────────────────────────────
 class App(tk.Tk):
@@ -171,7 +196,8 @@ class App(tk.Tk):
         legend.pack(fill="x")
         tk.Label(legend,
                  text="💡 Nhấp vào ô Link Label / Mặt trước / Mặt sau để chỉnh sửa.   "
-                      "🔒 Hàng đỏ = không có Variant ID (bị khóa, không thể xuất).",
+                      "� Hàng đỏ = thiếu Variant ID.   "
+                      "🟠 Hàng cam = đơn hàng chưa đầy đủ.   (Cả hai đều bị khóa.)",
                  font=("Helvetica", 10), fg="#555").pack(side="left")
 
         # ── Table ───────────────────────────────────────────────────────────────
@@ -213,11 +239,12 @@ class App(tk.Tk):
         frame.rowconfigure(0, weight=1)
         frame.columnconfigure(0, weight=1)
 
-        self.tree.tag_configure("odd",         background="#f9f9f9")
-        self.tree.tag_configure("even",        background="#ffffff")
-        self.tree.tag_configure("locked",      background="#ffe0e0", foreground="#aaaaaa")
-        self.tree.tag_configure("url_err",     background="#ffd0d0")
-        self.tree.tag_configure("placeholder", foreground="#aaaaaa")
+        self.tree.tag_configure("odd",            background="#f9f9f9")
+        self.tree.tag_configure("even",           background="#ffffff")
+        self.tree.tag_configure("locked",         background="#ffe0e0", foreground="#aaaaaa")
+        self.tree.tag_configure("partial_locked", background="#fff0d0", foreground="#aaaaaa")
+        self.tree.tag_configure("url_err",        background="#ffd0d0")
+        self.tree.tag_configure("placeholder",    foreground="#aaaaaa")
 
         style = ttk.Style()
         style.configure("Treeview",         font=("Helvetica", 12), rowheight=32)
@@ -255,12 +282,20 @@ class App(tk.Tk):
         self.check_vars.clear()
 
         for i, item in enumerate(self.items):
-            locked = not item["variant_id"]
-            var = tk.BooleanVar(value=not locked)
+            is_locked   = not item["variant_id"]
+            is_partial  = item.get("partial_lock", False)
+            any_lock    = is_locked or is_partial
+            var = tk.BooleanVar(value=not any_lock)
             self.check_vars.append(var)
 
-            tag        = "locked" if locked else ("odd" if i % 2 else "even")
-            check_sym  = "—"  if locked else "☑"
+            if is_locked:
+                tag = "locked"
+            elif is_partial:
+                tag = "partial_locked"
+            else:
+                tag = "odd" if i % 2 else "even"
+
+            check_sym  = "—" if any_lock else "☑"
             vid        = item["variant_id"] if item["variant_id"] else "—"
             addr_parts = [p for p in [item["city"], item["state"], item["zip"]] if p]
             address    = ", ".join(addr_parts)
@@ -293,9 +328,9 @@ class App(tk.Tk):
         col_name  = col_names[col_index] if col_index < len(col_names) else ""
         idx       = int(iid)
 
-        # Checkbox toggle
+        # Checkbox toggle — block locked and partial_locked rows
         if col_name == "check":
-            if not self.items[idx]["variant_id"]:
+            if not self.items[idx]["variant_id"] or self.items[idx].get("partial_lock"):
                 return  # locked
             new_val = not self.check_vars[idx].get()
             self.check_vars[idx].set(new_val)
@@ -396,7 +431,7 @@ class App(tk.Tk):
     # ── Select all / none ────────────────────────────────────────────────────────
     def _select_all(self):
         for i, var in enumerate(self.check_vars):
-            if not self.items[i]["variant_id"]:
+            if not self.items[i]["variant_id"] or self.items[i].get("partial_lock"):
                 continue
             var.set(True)
             vals    = list(self.tree.item(str(i), "values"))
@@ -406,7 +441,7 @@ class App(tk.Tk):
 
     def _select_none(self):
         for i, var in enumerate(self.check_vars):
-            if not self.items[i]["variant_id"]:
+            if not self.items[i]["variant_id"] or self.items[i].get("partial_lock"):
                 continue
             var.set(False)
             vals    = list(self.tree.item(str(i), "values"))
@@ -415,11 +450,13 @@ class App(tk.Tk):
         self._update_status(0)
 
     def _update_status(self, checked):
-        total  = len(self.items)
-        locked = sum(1 for it in self.items if not it["variant_id"])
+        total         = len(self.items)
+        no_variant    = sum(1 for it in self.items if not it["variant_id"])
+        partial       = sum(1 for it in self.items if it.get("partial_lock"))
+        total_locked  = no_variant + partial
         self.status_var.set(
-            f"Đã chọn {checked} / {total - locked} mặt hàng   |   "
-            f"🔒 {locked} hàng bị khóa — thiếu Variant ID (phải làm thủ công)"
+            f"Đã chọn {checked} / {total - total_locked} mặt hàng   |   "
+            f"� {no_variant} thiếu Variant ID   🟠 {partial} đơn chưa đầy đủ"
         )
 
     # ── Export ───────────────────────────────────────────────────────────────────
@@ -475,7 +512,7 @@ class App(tk.Tk):
             if not self.check_vars[i].get():
                 skipped_unchecked += 1
                 continue
-            if not item["variant_id"]:
+            if not item["variant_id"] or item.get("partial_lock"):
                 skipped_no_variant += 1
                 continue
 
