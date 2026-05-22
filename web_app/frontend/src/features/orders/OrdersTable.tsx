@@ -6,7 +6,7 @@ import {
   type ColumnDef,
   type SortingState,
 } from '@tanstack/react-table'
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import { Checkbox, Badge, Text, Box, Stack, Group, TextInput, Image, Tooltip } from '@mantine/core'
 import type { OrderItem } from './types'
 import { extractGdriveId, gdriveThumbnailUrl } from './gdriveUtils'
@@ -19,27 +19,33 @@ interface OrdersTableProps {
   onUpdateItem: (index: number, patch: Partial<OrderItem>) => void
 }
 
-type RowStatus = 'locked' | 'partial' | 'needs-url' | 'ready'
+type RowStatus = 'locked' | 'partial' | 'needs-link-label' | 'needs-design' | 'needs-mockup' | 'ready'
 
 function getRowStatus(item: OrderItem): RowStatus {
   if (!item.variantId && !item.isPartialLock) return 'locked'
   if (item.isPartialLock) return 'partial'
-  if (!isRowReady(item)) return 'needs-url'
+  if (!item.linkLabel.trim()) return 'needs-link-label'
+  if (!item.designFront.trim() && !item.designBack.trim()) return 'needs-design'
+  if (!item.mockupFront.trim() && !item.mockupBack.trim()) return 'needs-mockup'
   return 'ready'
 }
 
 const STATUS_SORT_ORDER: Record<RowStatus, number> = {
-  locked: 0,
-  partial: 1,
-  'needs-url': 2,
-  ready: 3,
+  locked:             0,
+  partial:            1,
+  'needs-link-label': 2,
+  'needs-design':     3,
+  'needs-mockup':     4,
+  ready:              5,
 }
 
 const STATUS_BADGE: Record<RowStatus, { color: string; label: string }> = {
-  locked:      { color: 'red',    label: 'Missing Variant'  },
-  partial:     { color: 'orange', label: 'Partial Order'    },
-  'needs-url': { color: 'yellow', label: 'Needs Design URL' },
-  ready:       { color: 'green',  label: 'Ready'            },
+  locked:             { color: 'red',    label: '❌ Thiếu Variant ID'  },
+  partial:            { color: 'orange', label: '⚠️ Đơn không đầy đủ' },
+  'needs-link-label': { color: 'yellow', label: '🏷 Cần Link Label'    },
+  'needs-design':     { color: 'yellow', label: '🖼 Cần URL thiết kế'  },
+  'needs-mockup':     { color: 'yellow', label: '🖼 Cần URL mockup'    },
+  ready:              { color: 'green',  label: '✅ Sẵn sàng'          },
 }
 
 // Matches Python ORDER_PALETTE — cycles per unique orderId
@@ -108,62 +114,45 @@ interface UrlPairProps {
   onChangeB: (val: string) => void
 }
 
-function UrlPair({ labelA, valueA, onChangeA, labelB, valueB, onChangeB }: UrlPairProps) {
-  const thumbA = (() => { const id = extractGdriveId(valueA); return id ? gdriveThumbnailUrl(id, 400) : null })()
-  const thumbB = (() => { const id = extractGdriveId(valueB); return id ? gdriveThumbnailUrl(id, 400) : null })()
+interface UrlQuadItem {
+  label: string
+  value: string
+  onChange: (val: string) => void
+}
 
+function UrlQuad({ items }: { items: UrlQuadItem[] }) {
   return (
-    <Group gap="lg" align="flex-start">
-      {/* Column A */}
-      <Stack gap={3}>
-        <Group gap={4} align="center">
-          <Text size="11px" c="dimmed" w={90} style={{ flexShrink: 0 }}>{labelA}:</Text>
-          <TextInput
-            size="xs"
-            styles={{ input: { fontSize: '11px', height: 24, minHeight: 24 } }}
-            placeholder="Paste Google Drive URL…"
-            value={valueA}
-            onChange={e => onChangeA(e.currentTarget.value)}
-            style={{ width: 280, flexShrink: 0 }}
-          />
-        </Group>
-        <Box ml={94}>
-          {thumbA ? (
-            <Tooltip label="Click to open" position="top">
-              <a href={valueA} target="_blank" rel="noreferrer">
-                <Image src={thumbA} w={80} h={80} radius="sm" style={{ objectFit: 'cover' }} />
-              </a>
-            </Tooltip>
-          ) : (
-            <Box w={80} h={80} style={{ borderRadius: 4, background: 'var(--mantine-color-gray-2)' }} />
-          )}
-        </Box>
-      </Stack>
-      {/* Column B */}
-      <Stack gap={3}>
-        <Group gap={4} align="center">
-          <Text size="11px" c="dimmed" w={90} style={{ flexShrink: 0 }}>{labelB}:</Text>
-          <TextInput
-            size="xs"
-            styles={{ input: { fontSize: '11px', height: 24, minHeight: 24 } }}
-            placeholder="Paste Google Drive URL…"
-            value={valueB}
-            onChange={e => onChangeB(e.currentTarget.value)}
-            style={{ width: 280, flexShrink: 0 }}
-          />
-        </Group>
-        <Box ml={94}>
-          {thumbB ? (
-            <Tooltip label="Click to open" position="top">
-              <a href={valueB} target="_blank" rel="noreferrer">
-                <Image src={thumbB} w={80} h={80} radius="sm" style={{ objectFit: 'cover' }} />
-              </a>
-            </Tooltip>
-          ) : (
-            <Box w={80} h={80} style={{ borderRadius: 4, background: 'var(--mantine-color-gray-2)' }} />
-          )}
-        </Box>
-      </Stack>
+    <Group gap="md" align="flex-start">
+      {items.map(({ label, value, onChange }) => {
+        const thumbUrl = (() => {
+          const id = extractGdriveId(value)
+          return id ? gdriveThumbnailUrl(id, 400) : null
+        })()
+        return (
+          <Stack key={label} gap={3}>
+            <TextInput
+              size="xs"
+              styles={{ input: { fontSize: '11px', height: 24, minHeight: 24 } }}
+              placeholder={label}
+              value={value}
+              onChange={e => onChange(e.currentTarget.value)}
+              style={{ width: 180, flexShrink: 0 }}
+            />
+            <Group gap={4} align="center" style={{ width: 180 }}>
+              <Text size="10px" c="dimmed" style={{ flex: 1, textAlign: 'center' }}>{label}</Text>
+              {thumbUrl ? (
+                <Tooltip label="Click to open" position="top">
+                  <a href={value} target="_blank" rel="noreferrer">
+                    <Image src={thumbUrl} w={80} h={80} radius="sm" style={{ objectFit: 'cover' }} />
+                  </a>
+                </Tooltip>
+              ) : (
+                <Box w={80} h={80} style={{ borderRadius: 4, background: 'var(--mantine-color-gray-2)' }} />
+              )}
+            </Group>
+          </Stack>
+        )
+      })}
     </Group>
   )
 }
@@ -171,12 +160,22 @@ function UrlPair({ labelA, valueA, onChangeA, labelB, valueB, onChangeB }: UrlPa
 export function OrdersTable({ items, checked, onToggleChecked, onUpdateItem }: OrdersTableProps) {
   const [sorting, setSorting] = useState<SortingState>([])
 
-  const data = useMemo<RowData[]>(() => {
-    const withIndex = items.map((item, originalIndex) => ({ ...item, originalIndex }))
-    return [...withIndex].sort(
-      (a, b) => STATUS_SORT_ORDER[getRowStatus(a)] - STATUS_SORT_ORDER[getRowStatus(b)]
-    )
-  }, [items])
+  // Frozen sort order — only recomputed when a new CSV is imported (items.length changes).
+  // This prevents rows from jumping around while the user edits inputs.
+  const frozenOrderRef = useRef<number[]>([])
+  const prevLengthRef = useRef(-1)
+
+  if (items.length !== prevLengthRef.current) {
+    prevLengthRef.current = items.length
+    const indexed = items.map((item, i) => ({ item, i }))
+    indexed.sort((a, b) => STATUS_SORT_ORDER[getRowStatus(a.item)] - STATUS_SORT_ORDER[getRowStatus(b.item)])
+    frozenOrderRef.current = indexed.map(x => x.i)
+  }
+
+  const data = useMemo<RowData[]>(
+    () => frozenOrderRef.current.map(i => ({ ...items[i], originalIndex: i })),
+    [items]
+  )
 
   const columns = useMemo<ColumnDef<RowData>[]>(() => [
     {
@@ -230,11 +229,11 @@ export function OrdersTable({ items, checked, onToggleChecked, onUpdateItem }: O
       header: 'Qty',
       size: 50,
     },
-    {
-      accessorKey: 'address1',
-      header: 'Address',
-      size: 180,
-    },
+    // {
+    //   accessorKey: 'address1',
+    //   header: 'Address',
+    //   size: 180,
+    // },
     {
       id: 'status',
       header: 'Status',
@@ -317,24 +316,13 @@ export function OrdersTable({ items, checked, onToggleChecked, onUpdateItem }: O
                           showPreview={false}
                           onChange={val => onUpdateItem(row.original.originalIndex, { linkLabel: val })}
                         />
-                        {/* Design Front + Back: inputs on same row, previews below each */}
-                        <UrlPair
-                          labelA="Design Front"
-                          valueA={row.original.designFront}
-                          onChangeA={val => onUpdateItem(row.original.originalIndex, { designFront: val })}
-                          labelB="Design Back"
-                          valueB={row.original.designBack}
-                          onChangeB={val => onUpdateItem(row.original.originalIndex, { designBack: val })}
-                        />
-                        {/* Mockup Front + Back: inputs on same row, previews below each */}
-                        <UrlPair
-                          labelA="Mockup Front"
-                          valueA={row.original.mockupFront}
-                          onChangeA={val => onUpdateItem(row.original.originalIndex, { mockupFront: val })}
-                          labelB="Mockup Back"
-                          valueB={row.original.mockupBack}
-                          onChangeB={val => onUpdateItem(row.original.originalIndex, { mockupBack: val })}
-                        />
+                        {/* All 4 design/mockup fields on one row */}
+                        <UrlQuad items={[
+                          { label: 'Design Front', value: row.original.designFront, onChange: (val: string) => onUpdateItem(row.original.originalIndex, { designFront: val }) },
+                          { label: 'Design Back',  value: row.original.designBack,  onChange: (val: string) => onUpdateItem(row.original.originalIndex, { designBack:  val }) },
+                          { label: 'Mockup Front', value: row.original.mockupFront, onChange: (val: string) => onUpdateItem(row.original.originalIndex, { mockupFront: val }) },
+                          { label: 'Mockup Back',  value: row.original.mockupBack,  onChange: (val: string) => onUpdateItem(row.original.originalIndex, { mockupBack:  val }) },
+                        ]} />
                       </Stack>
                     </td>
                   </tr>
