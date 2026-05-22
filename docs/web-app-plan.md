@@ -65,13 +65,58 @@ web_app/
      ↑ AppShell.Navbar
 ```
 
-### Component rules
-- **Always use Mantine components** — `Box`, `Button`, `TextInput`, `Table`, `Badge`, `Image`, `Modal`, `Popover`, etc.
-- **Never use raw HTML elements** — no `<div>`, `<input>`, `<button>`, `<table>` directly
-- Mantine `Table` for the orders grid
-- Mantine `Badge` for row status (✅ Submitted / ❌ Failed / ⏳ Pending)
-- Mantine `Popover` for the submit confirmation and design library picker
-- Mantine `TextInput` for inline URL editing
+### Orders Page — single table, smart visual hierarchy (no tabs)
+
+**No tabs.** Everything is one flat table. Smart sorting and visual cues guide the user naturally.
+
+#### Attention banner (sticky, above the table)
+```
+┌─────────────────────────────────────────────────────────────┐
+│  ⚠ 8 orders need design URLs               [Jump to first ↓]│
+└─────────────────────────────────────────────────────────────┘
+```
+- Mantine `Alert` component, only shown when incomplete rows exist
+- **[Jump to first ↓]** scrolls to the first row that needs attention
+- Disappears automatically when all rows are complete
+
+#### Toolbar (below banner)
+```
+[📂 Upload CSV]   [☑ Select All]   [Export XLSX]   [Submit X orders →]
+```
+
+#### Table — default sort: needs attention first
+```
+┌──────────────────────────────────────────────────────────────┐
+│ 🔴 HD-001 │ John D. │ ...  ← locked, missing variant ID      │
+│ 🟡 HD-002 │ Jane S. │ ...  ← needs design URL filled  ✏     │
+│ 🟡 HD-003 │ Bob K.  │ ...  ← needs design URL filled  ✏     │
+│ ✅ HD-004 │ Alice M.│ ...  ← ready to export/submit          │
+│ ✅ HD-005 │ Carol T.│ ...  ← ready to export/submit          │
+└──────────────────────────────────────────────────────────────┘
+```
+
+- **Rows needing attention float to the top** on CSV load
+- User never needs to scroll to find incomplete rows
+- Row coloring uses Mantine `Table` row props — no custom CSS needed
+- Checkboxes work exactly like V1: user checks what they want → Export or Submit
+
+#### Row states
+| State | Visual |
+|---|---|
+| Missing Variant ID | 🔴 Red `Badge`, row locked (cannot check) |
+| Needs design URL | 🟡 Yellow `Badge` + ✏ indicator, checkable |
+| Ready | ✅ Green `Badge`, checkable |
+| Submitted | ✅ Green `Badge` + "Submitted", greyed out |
+| Failed | ❌ Red `Badge`, stays checked, error in `Tooltip` |
+| Pending | ⏳ Mantine `Loader`, row disabled during API call |
+
+#### Two-row layout per order
+- **Top row**: checkbox, order date, order ID, customer, product/variation, variant ID, qty, address
+- **Bottom row**: design URL fields with live image previews (`Mantine Image`) + status `Badge`
+- Click URL field → `TextInput` inline editor
+- Click 📚 → `Popover` to pick from Design Library (auto-fills all 4 URLs)
+
+
 
 ---
 

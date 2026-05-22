@@ -7,6 +7,7 @@
   2. Provide a list of behaviors that you'll change.
   3. Provide a list of test cases to add.
 - **Always ask the user for permission before starting to write or modify any code.** Present the plan first and wait for explicit approval before proceeding.
+- **Always show a preview of the code changes** (as a code block in the chat) before applying them to any file. Wait for explicit approval before making the actual file change.
 - Before you add any code, always check if you can just re-use
   or re-configure any existing code to achieve the result.
 - Always focus on simplicity and precision and not comprehensiveness.

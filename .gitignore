@@ -23,6 +23,11 @@ build/
 dist/
 *.spec
 
+# ── Web app (frontend) ───────────────────────────────────────────────────────
+web_app/frontend/node_modules/
+web_app/frontend/dist/
+web_app/frontend/.vite/
+
 # ── Environment / secrets ────────────────────────────────────────────────────
 .env
 web_app/.env
