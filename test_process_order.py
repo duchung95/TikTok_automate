@@ -366,6 +366,8 @@ def _make_exportable_item(**overrides):
         "quantity":     "2",
         "design_front": "https://example.com/front.png",
         "design_back":  "https://example.com/back.png",
+        "mockup_front": "https://example.com/mfront.png",
+        "mockup_back":  "https://example.com/mback.png",
         "partial_lock": False,
     }
     base.update(overrides)
@@ -422,10 +424,14 @@ class TestBuildFlashshipRow:
             design_front="https://cdn.example.com/f.png",
             design_back="https://cdn.example.com/b.png",
             link_label="https://cdn.example.com/l.png",
+            mockup_front="https://cdn.example.com/mf.png",
+            mockup_back="https://cdn.example.com/mb.png",
         ))
         assert row["Design front"] == "https://cdn.example.com/f.png"
         assert row["Design back"] == "https://cdn.example.com/b.png"
         assert row["Link Label"] == "https://cdn.example.com/l.png"
+        assert row["Mockup Front"] == "https://cdn.example.com/mf.png"
+        assert row["Mockup Back"] == "https://cdn.example.com/mb.png"
 
     def test_all_columns_present(self):
         """Every FlashShip column must exist in the output."""
@@ -435,7 +441,8 @@ class TestBuildFlashshipRow:
     def test_unused_columns_are_empty_string(self):
         row = build_flashship_row(_make_exportable_item())
         unused = [
-            "Email", "Design Left Hand", "Design Right Hand", "Mockup Front",
+            "Email", "Design Left Hand", "Design Right Hand",
+            "Mockup Left Hand", "Mockup Right Hand",
             "Product Note", "Card Code",
         ]
         for col in unused:

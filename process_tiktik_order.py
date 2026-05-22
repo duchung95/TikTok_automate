@@ -8,9 +8,20 @@ import csv
 import json
 import os
 import sys
+import re
+import threading
+import queue
+import urllib.request
+import io
 from datetime import date
 from urllib.parse import urlparse
 import openpyxl
+
+try:
+    from PIL import Image as _PILImage, ImageTk as _PILImageTk
+    _PIL_AVAILABLE = True
+except ImportError:
+    _PIL_AVAILABLE = False
 
 # ─── Config ────────────────────────────────────────────────────────────────────
 # When frozen by PyInstaller, bundled data lives in sys._MEIPASS.
@@ -130,6 +141,8 @@ def filter_rows(rows, variant_map, size_fix, color_fix):
             "link_label":      "",
             "design_front":    "",
             "design_back":     "",
+            "mockup_front":    "",
+            "mockup_back":     "",
         })
 
     mark_partial_orders(items)
@@ -215,6 +228,8 @@ def build_flashship_row(item):
     row["Variant ID"]      = item["variant_id"]
     row["Design front"]    = item["design_front"]
     row["Design back"]     = item["design_back"]
+    row["Mockup Front"]    = item["mockup_front"]
+    row["Mockup Back"]     = item["mockup_back"]
     row["DTF/DTG"]         = "3"
     return row
 
@@ -239,6 +254,25 @@ def parse_order_date(date_str):
     return None
 
 
+def _extract_gdrive_id(url):
+    """Extract Google Drive file ID from various share URL formats."""
+    if not url:
+        return None
+    # /file/d/FILE_ID/view  or  /d/FILE_ID
+    m = re.search(r'/d/([a-zA-Z0-9_-]{20,})', url)
+    if m:
+        return m.group(1)
+    # ?id=FILE_ID or &id=FILE_ID
+    m = re.search(r'[?&]id=([a-zA-Z0-9_-]{20,})', url)
+    if m:
+        return m.group(1)
+    return None
+
+
+def _gdrive_thumb_url(file_id, size=200):
+    return f"https://drive.google.com/thumbnail?id={file_id}&sz=w{size}"
+
+
 # ─── App ────────────────────────────────────────────────────────────────────────
 class App(tk.Tk):
     def __init__(self):
@@ -255,6 +289,12 @@ class App(tk.Tk):
         self._edit_iid       = None
         self._edit_col_index = None
         self._edit_col_name  = None
+
+        # In-cell image overlay state
+        self._img_queue    = queue.Queue()          # (iid, field, url, photo|None)
+        self._img_cache    = {}                     # url -> PhotoImage | None
+        self._img_loading  = set()                  # (iid, field, url) in-flight
+        self._img_overlays = {}                     # {iid: {field: tk.Label}}
 
         self._build_ui()
 
@@ -298,59 +338,214 @@ class App(tk.Tk):
 
         cols = ("check", "order_date", "order_id", "customer",
                 "variation", "variant_id", "qty",
-                "link_label", "design_front", "design_back", "note")
+                "link_label", "design_front", "design_back",
+                "mockup_front", "mockup_back", "note")
         self.tree = ttk.Treeview(frame, columns=cols, show="headings",
                                  selectmode="browse")
 
         col_cfg = [
-            ("check",        "✔",               58,  "center"),
-            ("order_date",   "Ngày đặt",        120,  "w"),
-            ("order_id",     "Mã đơn hàng",     170,  "w"),
-            ("customer",     "Khách hàng",      140,  "w"),
-            ("variation",    "Sản phẩm",        180,  "w"),
-            ("variant_id",   "Variant ID",       90,  "center"),
-            ("qty",          "SL",               40,  "center"),
-            ("link_label",   "Link Label  ✏",   210,  "w"),
-            ("design_front", "Mặt trước  ✏",    210,  "w"),
-            ("design_back",  "Mặt sau  ✏",      210,  "w"),
-            ("note",         "Ghi chú",          320,  "w"),
+            ("check",        "✔",                   58,  "center"),
+            ("order_date",   "Ngày đặt",            120,  "w"),
+            ("order_id",     "Mã đơn hàng",         170,  "w"),
+            ("customer",     "Khách hàng",           140,  "w"),
+            ("variation",    "Sản phẩm",             180,  "w"),
+            ("variant_id",   "Variant ID",            90,  "center"),
+            ("qty",          "SL",                    40,  "center"),
+            ("link_label",   "Link Label  ✏",        210,  "w"),
+            ("design_front", "Mặt trước  ✏",         210,  "w"),
+            ("design_back",  "Mặt sau  ✏",           210,  "w"),
+            ("mockup_front", "Mockup Mặt trước  ✏",  210,  "w"),
+            ("mockup_back",  "Mockup Mặt sau  ✏",    210,  "w"),
+            ("note",         "Ghi chú",               320,  "w"),
         ]
         for cid, heading, width, anchor in col_cfg:
             self.tree.heading(cid, text=heading)
             self.tree.column(cid, width=width, minwidth=30, anchor=anchor,
                              stretch=cid in ("link_label","design_front","design_back",
+                                             "mockup_front","mockup_back",
                                              "variation","note"))
 
         vsb = ttk.Scrollbar(frame, orient="vertical",   command=self.tree.yview)
         hsb = ttk.Scrollbar(frame, orient="horizontal", command=self.tree.xview)
-        self.tree.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
+        # Wrap yscrollcommand so overlay positions update after every scroll tick
+        def _yscroll(*args):
+            vsb.set(*args)
+            self.after(5, self._reposition_overlays)
+        self.tree.configure(yscrollcommand=_yscroll, xscrollcommand=hsb.set)
         self.tree.grid(row=0, column=0, sticky="nsew")
         vsb.grid(row=0, column=1, sticky="ns")
         hsb.grid(row=1, column=0, sticky="ew")
         frame.rowconfigure(0, weight=1)
         frame.columnconfigure(0, weight=1)
 
-        self.tree.tag_configure("locked",         background="#ffe0e0", foreground="#aaaaaa")
-        self.tree.tag_configure("partial_locked", background="#fff0d0", foreground="#aaaaaa")
-        self.tree.tag_configure("url_err",        background="#ffd0d0")
+        self.tree.tag_configure("locked",         background="#ffe0e0", foreground="#888888")
+        self.tree.tag_configure("partial_locked", background="#fff0d0", foreground="#888888")
+        self.tree.tag_configure("url_err",        background="#ffd0d0", foreground="#000000")
         self.tree.tag_configure("placeholder",    foreground="#aaaaaa")
         # Order-group colours — cycle through these for distinct order grouping
         ORDER_PALETTE = [
-            "#e8f4fd",  # 0 light blue
-            "#e8f8e8",  # 1 light green
-            "#fef9e7",  # 2 light yellow
-            "#f5eef8",  # 3 light lavender
-            "#fdebd0",  # 4 light peach
-            "#e8f8f5",  # 5 light teal
+            "#c9e8f9",  # 0 blue
+            "#c9f0d4",  # 1 green
+            "#fdf3c0",  # 2 yellow
+            "#e8d8f5",  # 3 lavender
+            "#fad9b0",  # 4 peach
+            "#c5ede4",  # 5 teal
         ]
         for idx, color in enumerate(ORDER_PALETTE):
-            self.tree.tag_configure(f"order_{idx}", background=color)
+            self.tree.tag_configure(f"order_{idx}", background=color, foreground="#000000")
 
         style = ttk.Style()
-        style.configure("Treeview",         font=("Helvetica", 12), rowheight=32)
+        style.configure("Treeview",         font=("Helvetica", 12), rowheight=110,
+                        foreground="#000000")
         style.configure("Treeview.Heading", font=("Helvetica", 12, "bold"))
 
         self.tree.bind("<Button-1>", self._on_click)
+        # Reposition overlays on mouse-wheel scroll (horizontal too)
+        self.tree.bind("<MouseWheel>",  lambda e: self.after(5, self._reposition_overlays))
+        self.tree.bind("<Button-4>",    lambda e: self.after(5, self._reposition_overlays))
+        self.tree.bind("<Button-5>",    lambda e: self.after(5, self._reposition_overlays))
+        self.tree.bind("<Shift-MouseWheel>", lambda e: self.after(5, self._reposition_overlays))
+        self.bind("<Configure>",        lambda e: self.after(10, self._reposition_overlays))
+
+        if _PIL_AVAILABLE:
+            self.after(150, self._poll_img_queue)
+
+    # ── In-cell image overlays ───────────────────────────────────────────────────
+    _IMAGE_FIELDS = ("design_front", "design_back", "mockup_front", "mockup_back")
+    _COL_NAMES    = ("check", "order_date", "order_id", "customer",
+                     "variation", "variant_id", "qty",
+                     "link_label", "design_front", "design_back",
+                     "mockup_front", "mockup_back", "note")
+
+    def _clear_overlays(self):
+        """Destroy all overlay labels and reset tracking state."""
+        for field_map in self._img_overlays.values():
+            for lbl in field_map.values():
+                lbl.destroy()
+        self._img_overlays.clear()
+        self._img_loading.clear()
+
+    def _load_row_images(self, iid, item):
+        """Start background fetch threads for every image field in a row."""
+        if not _PIL_AVAILABLE:
+            return
+        for field in self._IMAGE_FIELDS:
+            url = item.get(field, "")
+            if not url:
+                continue
+            key = (iid, field, url)
+            if key in self._img_loading:
+                continue
+            if url in self._img_cache:
+                # Already fetched — apply immediately on next poll tick
+                self._img_queue.put((iid, field, url, self._img_cache[url]))
+                continue
+            self._img_loading.add(key)
+            threading.Thread(target=self._fetch_image,
+                             args=(iid, field, url), daemon=True).start()
+
+    def _fetch_image(self, iid, field, url):
+        """Background thread: download + resize → push to queue."""
+        try:
+            file_id  = _extract_gdrive_id(url)
+            fetch_url = _gdrive_thumb_url(file_id, size=200) if file_id else url
+            req = urllib.request.Request(fetch_url,
+                                         headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                data = resp.read()
+            img = _PILImage.open(io.BytesIO(data)).convert("RGBA")
+            img.thumbnail((190, 100), _PILImage.LANCZOS)
+            photo = _PILImageTk.PhotoImage(img)
+            self._img_cache[url] = photo
+            self._img_queue.put((iid, field, url, photo))
+        except Exception:
+            self._img_cache[url] = None
+            self._img_queue.put((iid, field, url, None))
+
+    def _poll_img_queue(self):
+        """Main-thread: drain queue and create/update overlay labels."""
+        try:
+            while True:
+                iid, field, url, photo = self._img_queue.get_nowait()
+                # Skip stale results (row was cleared / URL changed)
+                idx = int(iid)
+                if idx >= len(self.items):
+                    continue
+                if self.items[idx].get(field) != url:
+                    continue
+                if photo:
+                    self._apply_overlay(iid, field, photo)
+        except queue.Empty:
+            pass
+        self.after(150, self._poll_img_queue)
+
+    def _apply_overlay(self, iid, field, photo):
+        """Create or update the image Label floating over a treeview cell."""
+        if iid not in self._img_overlays:
+            self._img_overlays[iid] = {}
+        lbl = self._img_overlays[iid].get(field)
+        if lbl is None or not lbl.winfo_exists():
+            lbl = tk.Label(self.tree, bd=0, cursor="hand2", bg="white")
+            lbl.bind("<Button-1>",
+                     lambda e, i=iid, f=field: self._on_overlay_click(i, f))
+            self._img_overlays[iid][field] = lbl
+        lbl.config(image=photo, text="")
+        lbl.image = photo   # prevent GC
+        self._position_overlay(iid, field, lbl)
+
+    def _position_overlay(self, iid, field, lbl):
+        """Place/hide one overlay according to the cell's current bbox."""
+        try:
+            col_num = self._COL_NAMES.index(field) + 1
+            bbox = self.tree.bbox(iid, f"#{col_num}")
+        except Exception:
+            bbox = None
+        if bbox:
+            x, y, w, h = bbox
+            lbl.place(x=x, y=y, width=w, height=h)
+            lbl.lift()
+        else:
+            lbl.place_forget()
+
+    def _reposition_overlays(self):
+        """Reposition every overlay after a scroll or resize event."""
+        for iid, field_map in self._img_overlays.items():
+            for field, lbl in field_map.items():
+                if lbl.winfo_exists():
+                    self._position_overlay(iid, field, lbl)
+
+    def _on_overlay_click(self, iid, field):
+        """User clicked an image cell — open the URL inline editor."""
+        if self._edit_entry:
+            self._commit_edit()
+        # Temporarily hide the overlay so the Entry widget is visible
+        if iid in self._img_overlays and field in self._img_overlays[iid]:
+            self._img_overlays[iid][field].place_forget()
+        col_index = self._COL_NAMES.index(field)
+        col       = f"#{col_index + 1}"
+        idx       = int(iid)
+        try:
+            bbox = self.tree.bbox(iid, col)
+        except Exception:
+            return
+        if not bbox:
+            return
+        x, y, w, h = bbox
+        current_val = self.items[idx][field]
+        entry = tk.Entry(self.tree, font=("Helvetica", 12), relief="solid", bd=1,
+                         highlightthickness=1, highlightbackground="#1565c0")
+        entry.place(x=x, y=y, width=max(w, 300), height=h)
+        entry.insert(0, current_val)
+        entry.select_range(0, "end")
+        entry.focus_set()
+        self._edit_entry     = entry
+        self._edit_iid       = iid
+        self._edit_col_index = col_index
+        self._edit_col_name  = field
+        entry.bind("<Return>",     lambda e: self._commit_edit())
+        entry.bind("<Escape>",     lambda e: self._cancel_edit())
+        entry.bind("<FocusOut>",   lambda e: self._commit_edit())
+        entry.bind("<KeyRelease>", lambda e: self._live_validate_entry())
 
     # ── Open CSV ────────────────────────────────────────────────────────────────
     def _open_csv(self):
@@ -395,6 +590,7 @@ class App(tk.Tk):
         return None
 
     def _populate_table(self):
+        self._clear_overlays()
         for row in self.tree.get_children():
             self.tree.delete(row)
         self.check_vars.clear()
@@ -426,12 +622,16 @@ class App(tk.Tk):
             lbl        = item["link_label"]   or PLACEHOLDER
             front      = item["design_front"] or PLACEHOLDER
             back       = item["design_back"]  or PLACEHOLDER
+            mfront     = item["mockup_front"] or PLACEHOLDER
+            mback      = item["mockup_back"]  or PLACEHOLDER
 
             self.tree.insert("", "end", iid=str(i), tags=(tag,), values=(
                 check_sym, item["order_date"], item["order_id"], item["customer"],
                 item["variation"], vid, item["quantity"],
-                lbl, front, back, item["status_note"],
+                lbl, front, back, mfront, mback, item["status_note"],
             ))
+            if _PIL_AVAILABLE:
+                self.after(0, lambda _i=str(i), _it=item: self._load_row_images(_i, _it))
 
         self._update_status(sum(1 for v in self.check_vars if v.get()))
 
@@ -447,7 +647,8 @@ class App(tk.Tk):
 
         col_names = ("check", "order_date", "order_id", "customer",
                      "variation", "variant_id", "qty",
-                     "link_label", "design_front", "design_back", "note")
+                     "link_label", "design_front", "design_back",
+                     "mockup_front", "mockup_back", "note")
         col_index = int(col.replace("#", "")) - 1
         col_name  = col_names[col_index] if col_index < len(col_names) else ""
         idx       = int(iid)
@@ -464,7 +665,8 @@ class App(tk.Tk):
             self._update_status(sum(1 for v in self.check_vars if v.get()))
             return
 
-        if col_name not in ("link_label", "design_front", "design_back"):
+        if col_name not in ("link_label", "design_front", "design_back",
+                            "mockup_front", "mockup_back"):
             return
 
         try:
@@ -541,7 +743,8 @@ class App(tk.Tk):
         # Recompute tag
         has_url_err = any(
             not is_valid_url(self.items[idx][f])
-            for f in ("link_label", "design_front", "design_back")
+            for f in ("link_label", "design_front", "design_back",
+                      "mockup_front", "mockup_back")
         )
         # Determine which order-group colour tag this row should have
         all_oids = [it["order_id"] for it in self.items]
@@ -569,6 +772,15 @@ class App(tk.Tk):
 
         self._edit_entry.destroy()
         self._edit_entry = None
+
+        # Refresh image overlay if a URL field was edited
+        if _PIL_AVAILABLE and col_name in ("design_front", "design_back",
+                                           "mockup_front", "mockup_back"):
+            # Remove stale overlay for this cell so _load_row_images re-fetches
+            if iid in self._img_overlays and col_name in self._img_overlays[iid]:
+                self._img_overlays[iid][col_name].destroy()
+                del self._img_overlays[iid][col_name]
+            self._load_row_images(iid, self.items[idx])
 
     def _cancel_edit(self):
         if self._edit_entry:
@@ -625,31 +837,32 @@ class App(tk.Tk):
             )
             return
 
-        # Validate: all link fields are required and must be valid URLs
-        missing_rows = []
-        invalid_rows = []
+        # Soft warning: invalid URLs in any link field (does NOT block export)
+        invalid_urls = []
         for i, item in enumerate(self.items):
             if not self.check_vars[i].get():
                 continue
             customer = item["customer"] or item["order_id"]
-            for field, label in (("link_label",   "Link Label"),
-                                  ("design_front", "Mặt trước (Design Front)"),
-                                  ("design_back",  "Mặt sau (Design Back)")):
+            for field, label in (
+                ("link_label",   "Link Label"),
+                ("design_front", "Mặt trước (Design Front)"),
+                ("design_back",  "Mặt sau (Design Back)"),
+                ("mockup_front", "Mockup Mặt trước"),
+                ("mockup_back",  "Mockup Mặt sau"),
+            ):
                 val = item[field]
-                if not val:
-                    missing_rows.append(f"  • {customer} — thiếu {label}")
-                elif not is_valid_url(val):
-                    invalid_rows.append(f"  • {customer} — {label}: \"{val}\"")
+                if val and not is_valid_url(val):
+                    invalid_urls.append(f"  • {customer} — {label}: \"{val}\"")
 
-        errors = []
-        if missing_rows:
-            errors.append("❌ Các ô sau chưa được điền:\n" + "\n".join(missing_rows))
-        if invalid_rows:
-            errors.append("⚠ Các link sau không hợp lệ (phải bắt đầu bằng https://):\n"
-                          + "\n".join(invalid_rows))
-        if errors:
-            messagebox.showerror("Chưa điền đầy đủ thông tin", "\n\n".join(errors))
-            return
+        if invalid_urls:
+            proceed = messagebox.askyesno(
+                "Link không hợp lệ",
+                "⚠ Các link sau không hợp lệ (không bắt đầu bằng https://).\n"
+                "Bạn có muốn tiếp tục xuất file không?\n\n"
+                + "\n".join(invalid_urls)
+            )
+            if not proceed:
+                return
 
         out_name = f"flashship_import_{date.today().isoformat()}.xlsx"
         out_path = os.path.join(SCRIPT_DIR, out_name)
