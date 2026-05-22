@@ -23,6 +23,10 @@ build/
 dist/
 *.spec
 
+# ── Environment / secrets ────────────────────────────────────────────────────
+.env
+web_app/.env
+
 # ── TikTok order exports (contain customer PII) ──────────────────────────────
 All order-*.csv
 
