@@ -130,6 +130,8 @@ def filter_rows(rows, variant_map, size_fix, color_fix):
             "link_label":      "",
             "design_front":    "",
             "design_back":     "",
+            "mockup_front":    "",
+            "mockup_back":     "",
         })
 
     mark_partial_orders(items)
@@ -215,6 +217,8 @@ def build_flashship_row(item):
     row["Variant ID"]      = item["variant_id"]
     row["Design front"]    = item["design_front"]
     row["Design back"]     = item["design_back"]
+    row["Mockup Front"]    = item["mockup_front"]
+    row["Mockup Back"]     = item["mockup_back"]
     row["DTF/DTG"]         = "3"
     return row
 
@@ -298,27 +302,31 @@ class App(tk.Tk):
 
         cols = ("check", "order_date", "order_id", "customer",
                 "variation", "variant_id", "qty",
-                "link_label", "design_front", "design_back", "note")
+                "link_label", "design_front", "design_back",
+                "mockup_front", "mockup_back", "note")
         self.tree = ttk.Treeview(frame, columns=cols, show="headings",
                                  selectmode="browse")
 
         col_cfg = [
-            ("check",        "✔",               58,  "center"),
-            ("order_date",   "Ngày đặt",        120,  "w"),
-            ("order_id",     "Mã đơn hàng",     170,  "w"),
-            ("customer",     "Khách hàng",      140,  "w"),
-            ("variation",    "Sản phẩm",        180,  "w"),
-            ("variant_id",   "Variant ID",       90,  "center"),
-            ("qty",          "SL",               40,  "center"),
-            ("link_label",   "Link Label  ✏",   210,  "w"),
-            ("design_front", "Mặt trước  ✏",    210,  "w"),
-            ("design_back",  "Mặt sau  ✏",      210,  "w"),
-            ("note",         "Ghi chú",          320,  "w"),
+            ("check",        "✔",                   58,  "center"),
+            ("order_date",   "Ngày đặt",            120,  "w"),
+            ("order_id",     "Mã đơn hàng",         170,  "w"),
+            ("customer",     "Khách hàng",           140,  "w"),
+            ("variation",    "Sản phẩm",             180,  "w"),
+            ("variant_id",   "Variant ID",            90,  "center"),
+            ("qty",          "SL",                    40,  "center"),
+            ("link_label",   "Link Label  ✏",        210,  "w"),
+            ("design_front", "Mặt trước  ✏",         210,  "w"),
+            ("design_back",  "Mặt sau  ✏",           210,  "w"),
+            ("mockup_front", "Mockup Mặt trước  ✏",  210,  "w"),
+            ("mockup_back",  "Mockup Mặt sau  ✏",    210,  "w"),
+            ("note",         "Ghi chú",               320,  "w"),
         ]
         for cid, heading, width, anchor in col_cfg:
             self.tree.heading(cid, text=heading)
             self.tree.column(cid, width=width, minwidth=30, anchor=anchor,
                              stretch=cid in ("link_label","design_front","design_back",
+                                             "mockup_front","mockup_back",
                                              "variation","note"))
 
         vsb = ttk.Scrollbar(frame, orient="vertical",   command=self.tree.yview)
@@ -330,24 +338,25 @@ class App(tk.Tk):
         frame.rowconfigure(0, weight=1)
         frame.columnconfigure(0, weight=1)
 
-        self.tree.tag_configure("locked",         background="#ffe0e0", foreground="#aaaaaa")
-        self.tree.tag_configure("partial_locked", background="#fff0d0", foreground="#aaaaaa")
-        self.tree.tag_configure("url_err",        background="#ffd0d0")
+        self.tree.tag_configure("locked",         background="#ffe0e0", foreground="#888888")
+        self.tree.tag_configure("partial_locked", background="#fff0d0", foreground="#888888")
+        self.tree.tag_configure("url_err",        background="#ffd0d0", foreground="#000000")
         self.tree.tag_configure("placeholder",    foreground="#aaaaaa")
         # Order-group colours — cycle through these for distinct order grouping
         ORDER_PALETTE = [
-            "#e8f4fd",  # 0 light blue
-            "#e8f8e8",  # 1 light green
-            "#fef9e7",  # 2 light yellow
-            "#f5eef8",  # 3 light lavender
-            "#fdebd0",  # 4 light peach
-            "#e8f8f5",  # 5 light teal
+            "#c9e8f9",  # 0 blue
+            "#c9f0d4",  # 1 green
+            "#fdf3c0",  # 2 yellow
+            "#e8d8f5",  # 3 lavender
+            "#fad9b0",  # 4 peach
+            "#c5ede4",  # 5 teal
         ]
         for idx, color in enumerate(ORDER_PALETTE):
-            self.tree.tag_configure(f"order_{idx}", background=color)
+            self.tree.tag_configure(f"order_{idx}", background=color, foreground="#000000")
 
         style = ttk.Style()
-        style.configure("Treeview",         font=("Helvetica", 12), rowheight=32)
+        style.configure("Treeview",         font=("Helvetica", 12), rowheight=32,
+                        foreground="#000000")
         style.configure("Treeview.Heading", font=("Helvetica", 12, "bold"))
 
         self.tree.bind("<Button-1>", self._on_click)
@@ -426,11 +435,13 @@ class App(tk.Tk):
             lbl        = item["link_label"]   or PLACEHOLDER
             front      = item["design_front"] or PLACEHOLDER
             back       = item["design_back"]  or PLACEHOLDER
+            mfront     = item["mockup_front"] or PLACEHOLDER
+            mback      = item["mockup_back"]  or PLACEHOLDER
 
             self.tree.insert("", "end", iid=str(i), tags=(tag,), values=(
                 check_sym, item["order_date"], item["order_id"], item["customer"],
                 item["variation"], vid, item["quantity"],
-                lbl, front, back, item["status_note"],
+                lbl, front, back, mfront, mback, item["status_note"],
             ))
 
         self._update_status(sum(1 for v in self.check_vars if v.get()))
@@ -447,7 +458,8 @@ class App(tk.Tk):
 
         col_names = ("check", "order_date", "order_id", "customer",
                      "variation", "variant_id", "qty",
-                     "link_label", "design_front", "design_back", "note")
+                     "link_label", "design_front", "design_back",
+                     "mockup_front", "mockup_back", "note")
         col_index = int(col.replace("#", "")) - 1
         col_name  = col_names[col_index] if col_index < len(col_names) else ""
         idx       = int(iid)
@@ -464,7 +476,8 @@ class App(tk.Tk):
             self._update_status(sum(1 for v in self.check_vars if v.get()))
             return
 
-        if col_name not in ("link_label", "design_front", "design_back"):
+        if col_name not in ("link_label", "design_front", "design_back",
+                            "mockup_front", "mockup_back"):
             return
 
         try:
@@ -541,7 +554,8 @@ class App(tk.Tk):
         # Recompute tag
         has_url_err = any(
             not is_valid_url(self.items[idx][f])
-            for f in ("link_label", "design_front", "design_back")
+            for f in ("link_label", "design_front", "design_back",
+                      "mockup_front", "mockup_back")
         )
         # Determine which order-group colour tag this row should have
         all_oids = [it["order_id"] for it in self.items]
@@ -625,31 +639,32 @@ class App(tk.Tk):
             )
             return
 
-        # Validate: all link fields are required and must be valid URLs
-        missing_rows = []
-        invalid_rows = []
+        # Soft warning: invalid URLs in any link field (does NOT block export)
+        invalid_urls = []
         for i, item in enumerate(self.items):
             if not self.check_vars[i].get():
                 continue
             customer = item["customer"] or item["order_id"]
-            for field, label in (("link_label",   "Link Label"),
-                                  ("design_front", "Mặt trước (Design Front)"),
-                                  ("design_back",  "Mặt sau (Design Back)")):
+            for field, label in (
+                ("link_label",   "Link Label"),
+                ("design_front", "Mặt trước (Design Front)"),
+                ("design_back",  "Mặt sau (Design Back)"),
+                ("mockup_front", "Mockup Mặt trước"),
+                ("mockup_back",  "Mockup Mặt sau"),
+            ):
                 val = item[field]
-                if not val:
-                    missing_rows.append(f"  • {customer} — thiếu {label}")
-                elif not is_valid_url(val):
-                    invalid_rows.append(f"  • {customer} — {label}: \"{val}\"")
+                if val and not is_valid_url(val):
+                    invalid_urls.append(f"  • {customer} — {label}: \"{val}\"")
 
-        errors = []
-        if missing_rows:
-            errors.append("❌ Các ô sau chưa được điền:\n" + "\n".join(missing_rows))
-        if invalid_rows:
-            errors.append("⚠ Các link sau không hợp lệ (phải bắt đầu bằng https://):\n"
-                          + "\n".join(invalid_rows))
-        if errors:
-            messagebox.showerror("Chưa điền đầy đủ thông tin", "\n\n".join(errors))
-            return
+        if invalid_urls:
+            proceed = messagebox.askyesno(
+                "Link không hợp lệ",
+                "⚠ Các link sau không hợp lệ (không bắt đầu bằng https://).\n"
+                "Bạn có muốn tiếp tục xuất file không?\n\n"
+                + "\n".join(invalid_urls)
+            )
+            if not proceed:
+                return
 
         out_name = f"flashship_import_{date.today().isoformat()}.xlsx"
         out_path = os.path.join(SCRIPT_DIR, out_name)
