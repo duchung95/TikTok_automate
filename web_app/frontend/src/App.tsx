@@ -19,7 +19,7 @@ export function App() {
     <AppShell navbar={{ width: 200, breakpoint: 'sm' }} padding="md" header={{ height: 52 }}>
       <AppShell.Header p="sm">
         <Group justify="space-between">
-          <Text fw={700} size="lg">🛍 TikTok → FlashPOD</Text>
+          <Text fw={700} size="lg">🛍 TikTok → FlashPOD12</Text>
           <Badge color="orange" variant="light">UAT</Badge>
         </Group>
       </AppShell.Header>

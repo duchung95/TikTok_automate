@@ -97,7 +97,8 @@ web_app/
 
 - **Rows needing attention float to the top** on CSV load
 - User never needs to scroll to find incomplete rows
-- Row coloring uses Mantine `Table` row props — no custom CSS needed
+- **TanStack Table** (`@tanstack/react-table`) powers the table — virtualization, sorting, two-row layout via row expansion. Scales from 10 to 500+ rows without rewrite.
+- Mantine components used **inside** TanStack cells for all visual elements — `Checkbox`, `Badge`, `TextInput`, `Image`, etc.
 - Checkboxes work exactly like V1: user checks what they want → Export or Submit
 
 #### Row states
