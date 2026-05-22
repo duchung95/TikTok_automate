@@ -147,6 +147,88 @@ def mark_partial_orders(items):
                 "Không thể xuất một phần đơn hàng."
             )
 
+
+def get_partial_export_violations(items, checked_indices):
+    """
+    Return a list of violation strings for orders that have only *some* of their
+    exportable items checked.  An empty list means the selection is safe to export.
+
+    Parameters
+    ----------
+    items           : list of item dicts (from filter_rows / mark_partial_orders)
+    checked_indices : iterable of integer indices that the user has ticked
+
+    An "exportable" item is one where variant_id is truthy AND partial_lock is False.
+    """
+    from collections import defaultdict
+    checked_set = set(checked_indices)
+
+    order_exportable = defaultdict(list)   # order_id -> [exportable indices]
+    order_checked    = defaultdict(list)   # order_id -> [checked exportable indices]
+
+    for i, item in enumerate(items):
+        if not item["variant_id"] or item.get("partial_lock"):
+            continue  # already fully blocked
+        order_exportable[item["order_id"]].append(i)
+        if i in checked_set:
+            order_checked[item["order_id"]].append(i)
+
+    violations = []
+    for oid, exportable in order_exportable.items():
+        checked = order_checked.get(oid, [])
+        if 0 < len(checked) < len(exportable):
+            sample = items[exportable[0]].get("customer") or oid
+            violations.append(
+                f"  • {sample} ({oid}) — đã chọn {len(checked)}/{len(exportable)} sản phẩm"
+            )
+    return violations
+
+
+def build_flashship_row(item):
+    """
+    Build the FlashShip import row dict for a single exportable item.
+    The caller is responsible for ensuring item["variant_id"] is set.
+    """
+    row = {col: "" for col in FLASHSHIP_COLUMNS}
+    row["Order ID"]        = "HD - " + item["order_id"]
+    row["Shipping method"] = "1"
+    row["Customer's name"] = item["customer"]
+    row["Phone"]           = item["phone"]
+    row["Country"]         = "US"
+    row["State"]           = item["state"]
+    row["Address line 1"]  = item["address1"]
+    row["Address line 2"]  = item["address2"]
+    row["City"]            = item["city"]
+    row["Zip"]             = item["zip"]
+    row["Link Label"]      = item["link_label"]
+    row["Quantity"]        = item["quantity"]
+    row["Variant ID"]      = item["variant_id"]
+    row["Design front"]    = item["design_front"]
+    row["Design back"]     = item["design_back"]
+    row["DTF/DTG"]         = "3"
+    return row
+
+
+def parse_order_date(date_str):
+    """
+    Parse a TikTok order date string (various formats) into a ``datetime.date``.
+    Returns ``None`` if the string cannot be parsed.
+    """
+    from datetime import datetime
+    date_str = date_str.strip()
+    for fmt in (
+        "%m/%d/%Y %I:%M:%S %p",   # TikTok: 05/20/2026 7:43:26 PM
+        "%m/%d/%Y %H:%M:%S",      # 24-hour fallback
+        "%Y-%m-%d %H:%M:%S",
+        "%Y-%m-%d",
+    ):
+        try:
+            return datetime.strptime(date_str, fmt).date()
+        except ValueError:
+            continue
+    return None
+
+
 # ─── App ────────────────────────────────────────────────────────────────────────
 class App(tk.Tk):
     def __init__(self):
@@ -204,7 +286,7 @@ class App(tk.Tk):
         frame = tk.Frame(self)
         frame.pack(fill="both", expand=True, padx=10, pady=(4, 10))
 
-        cols = ("check", "order_date", "order_id", "customer", "address",
+        cols = ("check", "order_date", "order_id", "customer",
                 "variation", "variant_id", "qty",
                 "link_label", "design_front", "design_back", "note")
         self.tree = ttk.Treeview(frame, columns=cols, show="headings",
@@ -215,7 +297,6 @@ class App(tk.Tk):
             ("order_date",   "Ngày đặt",        120,  "w"),
             ("order_id",     "Mã đơn hàng",     170,  "w"),
             ("customer",     "Khách hàng",      140,  "w"),
-            ("address",      "Địa chỉ",         200,  "w"),
             ("variation",    "Sản phẩm",        180,  "w"),
             ("variant_id",   "Variant ID",       90,  "center"),
             ("qty",          "SL",               40,  "center"),
@@ -228,7 +309,7 @@ class App(tk.Tk):
             self.tree.heading(cid, text=heading)
             self.tree.column(cid, width=width, minwidth=30, anchor=anchor,
                              stretch=cid in ("link_label","design_front","design_back",
-                                             "variation","address","note"))
+                                             "variation","note"))
 
         vsb = ttk.Scrollbar(frame, orient="vertical",   command=self.tree.yview)
         hsb = ttk.Scrollbar(frame, orient="horizontal", command=self.tree.xview)
@@ -239,12 +320,21 @@ class App(tk.Tk):
         frame.rowconfigure(0, weight=1)
         frame.columnconfigure(0, weight=1)
 
-        self.tree.tag_configure("odd",            background="#f9f9f9")
-        self.tree.tag_configure("even",           background="#ffffff")
         self.tree.tag_configure("locked",         background="#ffe0e0", foreground="#aaaaaa")
         self.tree.tag_configure("partial_locked", background="#fff0d0", foreground="#aaaaaa")
         self.tree.tag_configure("url_err",        background="#ffd0d0")
         self.tree.tag_configure("placeholder",    foreground="#aaaaaa")
+        # Order-group colours — cycle through these for distinct order grouping
+        ORDER_PALETTE = [
+            "#e8f4fd",  # 0 light blue
+            "#e8f8e8",  # 1 light green
+            "#fef9e7",  # 2 light yellow
+            "#f5eef8",  # 3 light lavender
+            "#fdebd0",  # 4 light peach
+            "#e8f8f5",  # 5 light teal
+        ]
+        for idx, color in enumerate(ORDER_PALETTE):
+            self.tree.tag_configure(f"order_{idx}", background=color)
 
         style = ttk.Style()
         style.configure("Treeview",         font=("Helvetica", 12), rowheight=32)
@@ -276,36 +366,60 @@ class App(tk.Tk):
         self.export_btn.config(state="normal")
 
     # ── Populate ────────────────────────────────────────────────────────────────
+    def _parse_order_date(self, date_str):
+        """Try to parse a date string into a date object. Returns None on failure."""
+        from datetime import datetime
+        for fmt in (
+            "%m/%d/%Y %I:%M:%S %p",   # 05/20/2026 7:43:26 PM  ← TikTok format
+            "%m/%d/%Y %H:%M:%S",
+            "%m/%d/%Y",
+            "%Y-%m-%d %H:%M:%S",
+            "%Y-%m-%d",
+            "%d/%m/%Y",
+            "%Y/%m/%d",
+        ):
+            try:
+                return datetime.strptime(date_str.strip(), fmt).date()
+            except (ValueError, AttributeError):
+                continue
+        return None
+
     def _populate_table(self):
         for row in self.tree.get_children():
             self.tree.delete(row)
         self.check_vars.clear()
 
+        # Assign a palette index to each unique order_id in the order they appear
+        order_color_idx = {}
+        palette_size    = 6  # must match ORDER_PALETTE length in _build_ui
+
         for i, item in enumerate(self.items):
+            oid = item["order_id"]
             is_locked   = not item["variant_id"]
             is_partial  = item.get("partial_lock", False)
             any_lock    = is_locked or is_partial
             var = tk.BooleanVar(value=not any_lock)
             self.check_vars.append(var)
 
+            if oid not in order_color_idx:
+                order_color_idx[oid] = len(order_color_idx) % palette_size
+
             if is_locked:
                 tag = "locked"
             elif is_partial:
                 tag = "partial_locked"
             else:
-                tag = "odd" if i % 2 else "even"
+                tag = f"order_{order_color_idx[oid]}"
 
             check_sym  = "—" if any_lock else "☑"
             vid        = item["variant_id"] if item["variant_id"] else "—"
-            addr_parts = [p for p in [item["city"], item["state"], item["zip"]] if p]
-            address    = ", ".join(addr_parts)
             lbl        = item["link_label"]   or PLACEHOLDER
             front      = item["design_front"] or PLACEHOLDER
             back       = item["design_back"]  or PLACEHOLDER
 
             self.tree.insert("", "end", iid=str(i), tags=(tag,), values=(
                 check_sym, item["order_date"], item["order_id"], item["customer"],
-                address, item["variation"], vid, item["quantity"],
+                item["variation"], vid, item["quantity"],
                 lbl, front, back, item["status_note"],
             ))
 
@@ -321,7 +435,7 @@ class App(tk.Tk):
         if not iid:
             return
 
-        col_names = ("check", "order_date", "order_id", "customer", "address",
+        col_names = ("check", "order_date", "order_id", "customer",
                      "variation", "variant_id", "qty",
                      "link_label", "design_front", "design_back", "note")
         col_index = int(col.replace("#", "")) - 1
@@ -365,11 +479,26 @@ class App(tk.Tk):
         self._edit_col_index = col_index
         self._edit_col_name  = col_name
 
-        entry.bind("<Return>",   lambda e: self._commit_edit())
-        entry.bind("<Escape>",   lambda e: self._cancel_edit())
-        entry.bind("<FocusOut>", lambda e: self._commit_edit())
+        entry.bind("<Return>",    lambda e: self._commit_edit())
+        entry.bind("<Escape>",    lambda e: self._cancel_edit())
+        entry.bind("<FocusOut>",  lambda e: self._commit_edit())
+        entry.bind("<KeyRelease>", lambda e: self._live_validate_entry())
 
     # ── Edit helpers ─────────────────────────────────────────────────────────────
+    def _live_validate_entry(self):
+        """Provide instant visual feedback while the user is typing a URL."""
+        if not self._edit_entry:
+            return
+        val = self._edit_entry.get().strip()
+        if is_valid_url(val):
+            # URL looks good — restore normal appearance and hide the warning
+            self._edit_entry.config(bg="white", highlightbackground="#1565c0")
+            if hasattr(self, "_url_warn_label"):
+                self._url_warn_label.place_forget()
+        else:
+            # Still invalid — keep red border
+            self._edit_entry.config(bg="#ffd0d0", highlightbackground="#c0392b")
+
     def _commit_edit(self):
         if not self._edit_entry:
             return
@@ -404,14 +533,22 @@ class App(tk.Tk):
             not is_valid_url(self.items[idx][f])
             for f in ("link_label", "design_front", "design_back")
         )
+        # Determine which order-group colour tag this row should have
+        all_oids = [it["order_id"] for it in self.items]
+        seen = {}
+        for oid in all_oids:
+            if oid not in seen:
+                seen[oid] = len(seen) % 6
+        order_tag = f"order_{seen[self.items[idx]['order_id']]}"
+
         current_tags = [t for t in self.tree.item(iid, "tags")
-                        if t not in ("odd", "even", "locked", "url_err")]
+                        if t not in ("locked", "url_err") and not t.startswith("order_")]
         if has_url_err:
             current_tags.append("url_err")
         elif not self.items[idx]["variant_id"]:
             current_tags.append("locked")
         else:
-            current_tags.append("odd" if idx % 2 else "even")
+            current_tags.append(order_tag)
         self.tree.item(iid, tags=current_tags)
 
         # Display: placeholder if empty
@@ -463,6 +600,20 @@ class App(tk.Tk):
     def _export(self):
         if self._edit_entry:
             self._commit_edit()
+
+        # Guard: no partial orders — if an order has multiple items, either ALL
+        # exportable items must be checked, or none of them.
+        checked_indices = [i for i, v in enumerate(self.check_vars) if v.get()]
+        partial_orders  = get_partial_export_violations(self.items, checked_indices)
+
+        if partial_orders:
+            messagebox.showerror(
+                "Không thể xuất đơn hàng không đầy đủ",
+                "❌ Các đơn hàng sau bị chọn thiếu sản phẩm.\n"
+                "Vui lòng chọn tất cả sản phẩm trong đơn hoặc bỏ chọn toàn bộ:\n\n"
+                + "\n".join(partial_orders)
+            )
+            return
 
         # Validate: all link fields are required and must be valid URLs
         missing_rows = []
@@ -516,23 +667,7 @@ class App(tk.Tk):
                 skipped_no_variant += 1
                 continue
 
-            row = {col: "" for col in FLASHSHIP_COLUMNS}
-            row["Order ID"]        = item["order_id"]
-            row["Shipping method"] = "1"
-            row["Customer's name"] = item["customer"]
-            row["Phone"]           = item["phone"]
-            row["Country"]         = "US"
-            row["State"]           = item["state"]
-            row["Address line 1"]  = item["address1"]
-            row["Address line 2"]  = item["address2"]
-            row["City"]            = item["city"]
-            row["Zip"]             = item["zip"]
-            row["Link Label"]      = item["link_label"]
-            row["Quantity"]        = item["quantity"]
-            row["Variant ID"]      = item["variant_id"]
-            row["Design front"]    = item["design_front"]
-            row["Design back"]     = item["design_back"]
-            row["DTF/DTG"]         = "1"
+            row = build_flashship_row(item)
             ws.append([row[col] for col in FLASHSHIP_COLUMNS])
             exported += 1
 

@@ -9,7 +9,11 @@ from process_tiktik_order import (
     is_valid_url,
     filter_rows,
     mark_partial_orders,
+    get_partial_export_violations,
+    build_flashship_row,
+    parse_order_date,
     STATE_MAP,
+    FLASHSHIP_COLUMNS,
 )
 
 # ─── Shared fixtures ────────────────────────────────────────────────────────────
@@ -241,3 +245,231 @@ class TestStateMap:
         assert STATE_MAP["Texas"] == "TX"
         assert STATE_MAP["New York"] == "NY"
         assert STATE_MAP["District of Columbia"] == "DC"
+
+
+# ─── get_partial_export_violations ──────────────────────────────────────────────
+def _make_item_full(order_id, variant_id, customer="Alice", partial_lock=False):
+    return {
+        "order_id":     order_id,
+        "variant_id":   variant_id,
+        "partial_lock": partial_lock,
+        "customer":     customer,
+        "status_note":  "",
+    }
+
+
+class TestGetPartialExportViolations:
+    """Tests for the partial-order export guard (get_partial_export_violations)."""
+
+    def test_no_items_no_violations(self):
+        assert get_partial_export_violations([], []) == []
+
+    def test_single_item_checked_no_violation(self):
+        items = [_make_item_full("ORD1", 111)]
+        assert get_partial_export_violations(items, [0]) == []
+
+    def test_single_item_unchecked_no_violation(self):
+        items = [_make_item_full("ORD1", 111)]
+        assert get_partial_export_violations(items, []) == []
+
+    def test_two_items_same_order_both_checked_no_violation(self):
+        items = [_make_item_full("ORD1", 111), _make_item_full("ORD1", 222)]
+        assert get_partial_export_violations(items, [0, 1]) == []
+
+    def test_two_items_same_order_none_checked_no_violation(self):
+        items = [_make_item_full("ORD1", 111), _make_item_full("ORD1", 222)]
+        assert get_partial_export_violations(items, []) == []
+
+    def test_two_items_same_order_only_one_checked_is_violation(self):
+        items = [_make_item_full("ORD1", 111), _make_item_full("ORD1", 222)]
+        violations = get_partial_export_violations(items, [0])
+        assert len(violations) == 1
+        assert "ORD1" in violations[0]
+        assert "1/2" in violations[0]
+
+    def test_violation_message_contains_customer_name(self):
+        items = [
+            _make_item_full("ORD1", 111, customer="Bob"),
+            _make_item_full("ORD1", 222, customer="Bob"),
+        ]
+        violations = get_partial_export_violations(items, [1])
+        assert "Bob" in violations[0]
+
+    def test_three_items_one_checked_reports_1_of_3(self):
+        items = [
+            _make_item_full("ORD1", 111),
+            _make_item_full("ORD1", 222),
+            _make_item_full("ORD1", 333),
+        ]
+        violations = get_partial_export_violations(items, [0])
+        assert "1/3" in violations[0]
+
+    def test_two_different_orders_each_fully_checked_no_violation(self):
+        items = [
+            _make_item_full("ORD1", 111),
+            _make_item_full("ORD1", 222),
+            _make_item_full("ORD2", 333),
+        ]
+        assert get_partial_export_violations(items, [0, 1, 2]) == []
+
+    def test_two_different_orders_first_partial_second_full(self):
+        items = [
+            _make_item_full("ORD1", 111),
+            _make_item_full("ORD1", 222),
+            _make_item_full("ORD2", 333),
+        ]
+        violations = get_partial_export_violations(items, [0, 2])
+        assert len(violations) == 1
+        assert "ORD1" in violations[0]
+
+    def test_locked_items_excluded_from_check(self):
+        """Items with variant_id=None are ignored (already locked elsewhere)."""
+        items = [
+            _make_item_full("ORD1", None),   # locked — ignored
+            _make_item_full("ORD1", 222),    # exportable
+        ]
+        # Only one exportable item → checking it = 1/1, no violation
+        assert get_partial_export_violations(items, [1]) == []
+
+    def test_partial_lock_items_excluded_from_check(self):
+        """Items with partial_lock=True are already blocked; don't count them."""
+        items = [
+            _make_item_full("ORD1", 111, partial_lock=True),  # partial_lock → skipped
+            _make_item_full("ORD1", 222),                     # exportable
+        ]
+        assert get_partial_export_violations(items, [1]) == []
+
+    def test_two_violations_from_two_different_orders(self):
+        items = [
+            _make_item_full("ORD1", 111),
+            _make_item_full("ORD1", 222),
+            _make_item_full("ORD2", 333),
+            _make_item_full("ORD2", 444),
+        ]
+        violations = get_partial_export_violations(items, [0, 2])
+        assert len(violations) == 2
+
+
+# ─── build_flashship_row ─────────────────────────────────────────────────────────
+def _make_exportable_item(**overrides):
+    base = {
+        "order_id":     "ORD999",
+        "variant_id":   174323,
+        "customer":     "Jane Doe",
+        "phone":        "5550001111",
+        "state":        "TX",
+        "address1":     "1 Main St",
+        "address2":     "",
+        "city":         "Austin",
+        "zip":          "78701",
+        "link_label":   "https://example.com/label.png",
+        "quantity":     "2",
+        "design_front": "https://example.com/front.png",
+        "design_back":  "https://example.com/back.png",
+        "partial_lock": False,
+    }
+    base.update(overrides)
+    return base
+
+
+class TestBuildFlashshipRow:
+    """Tests for the FlashShip row builder — validates field values."""
+
+    def test_order_id_prefixed_with_hd(self):
+        row = build_flashship_row(_make_exportable_item(order_id="ORD123"))
+        assert row["Order ID"] == "HD - ORD123"
+
+    def test_shipping_method_is_1(self):
+        row = build_flashship_row(_make_exportable_item())
+        assert row["Shipping method"] == "1"
+
+    def test_dtf_dtg_is_3(self):
+        row = build_flashship_row(_make_exportable_item())
+        assert row["DTF/DTG"] == "3"
+
+    def test_country_is_us(self):
+        row = build_flashship_row(_make_exportable_item())
+        assert row["Country"] == "US"
+
+    def test_customer_name_copied(self):
+        row = build_flashship_row(_make_exportable_item(customer="John Smith"))
+        assert row["Customer's name"] == "John Smith"
+
+    def test_phone_copied(self):
+        row = build_flashship_row(_make_exportable_item(phone="5551234567"))
+        assert row["Phone"] == "5551234567"
+
+    def test_variant_id_copied(self):
+        row = build_flashship_row(_make_exportable_item(variant_id=174323))
+        assert row["Variant ID"] == 174323
+
+    def test_quantity_copied(self):
+        row = build_flashship_row(_make_exportable_item(quantity="3"))
+        assert row["Quantity"] == "3"
+
+    def test_address_fields_copied(self):
+        row = build_flashship_row(_make_exportable_item(
+            address1="99 Oak Ave", address2="Apt 2", city="Dallas", zip="75001", state="TX"
+        ))
+        assert row["Address line 1"] == "99 Oak Ave"
+        assert row["Address line 2"] == "Apt 2"
+        assert row["City"] == "Dallas"
+        assert row["Zip"] == "75001"
+        assert row["State"] == "TX"
+
+    def test_design_fields_copied(self):
+        row = build_flashship_row(_make_exportable_item(
+            design_front="https://cdn.example.com/f.png",
+            design_back="https://cdn.example.com/b.png",
+            link_label="https://cdn.example.com/l.png",
+        ))
+        assert row["Design front"] == "https://cdn.example.com/f.png"
+        assert row["Design back"] == "https://cdn.example.com/b.png"
+        assert row["Link Label"] == "https://cdn.example.com/l.png"
+
+    def test_all_columns_present(self):
+        """Every FlashShip column must exist in the output."""
+        row = build_flashship_row(_make_exportable_item())
+        assert set(row.keys()) == set(FLASHSHIP_COLUMNS)
+
+    def test_unused_columns_are_empty_string(self):
+        row = build_flashship_row(_make_exportable_item())
+        unused = [
+            "Email", "Design Left Hand", "Design Right Hand", "Mockup Front",
+            "Product Note", "Card Code",
+        ]
+        for col in unused:
+            assert row[col] == "", f"Expected '' for {col!r}, got {row[col]!r}"
+
+
+# ─── parse_order_date ────────────────────────────────────────────────────────────
+from datetime import date as _date
+
+
+class TestParseOrderDate:
+    def test_tiktok_12hr_pm(self):
+        assert parse_order_date("05/20/2026 7:43:26 PM") == _date(2026, 5, 20)
+
+    def test_tiktok_12hr_am(self):
+        assert parse_order_date("01/15/2026 9:05:00 AM") == _date(2026, 1, 15)
+
+    def test_tiktok_12hr_noon(self):
+        assert parse_order_date("12/01/2025 12:00:00 PM") == _date(2025, 12, 1)
+
+    def test_24hr_format(self):
+        assert parse_order_date("05/21/2026 14:30:00") == _date(2026, 5, 21)
+
+    def test_iso_with_time(self):
+        assert parse_order_date("2026-05-21 08:00:00") == _date(2026, 5, 21)
+
+    def test_iso_date_only(self):
+        assert parse_order_date("2026-03-10") == _date(2026, 3, 10)
+
+    def test_whitespace_stripped(self):
+        assert parse_order_date("  05/20/2026 7:43:26 PM  ") == _date(2026, 5, 20)
+
+    def test_invalid_returns_none(self):
+        assert parse_order_date("not a date") is None
+
+    def test_empty_returns_none(self):
+        assert parse_order_date("") is None
