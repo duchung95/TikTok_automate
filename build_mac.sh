@@ -37,10 +37,12 @@ pyinstaller \
     --hidden-import openpyxl.styles \
     --hidden-import openpyxl.utils \
     --collect-submodules openpyxl \
+    --hidden-import PIL \
+    --hidden-import PIL.Image \
+    --hidden-import PIL.ImageTk \
+    --collect-submodules PIL \
     --exclude-module pandas \
     --exclude-module numpy \
-    --exclude-module PIL \
-    --exclude-module Pillow \
     --exclude-module cryptography \
     --exclude-module aiohttp \
     --exclude-module yaml \
