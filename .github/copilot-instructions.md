@@ -6,6 +6,7 @@
   1. Provide a full plan of your changes.
   2. Provide a list of behaviors that you'll change.
   3. Provide a list of test cases to add.
+- **Always ask the user for permission before starting to write or modify any code.** Present the plan first and wait for explicit approval before proceeding.
 - Before you add any code, always check if you can just re-use
   or re-configure any existing code to achieve the result.
 - Always focus on simplicity and precision and not comprehensiveness.
@@ -64,4 +65,4 @@
 - **Immutability:** Never mutate props or state directly. Always create new objects or arrays for updates.
 - **Fragments:** Use `<>...</>` or `React.Fragment` to avoid unnecessary DOM wrapper elements.
 - **Custom Hooks:** Extract reusable stateful logic into **custom hooks** (e.g., `useDebounce`, `useLocalStorage`).
-- **UI Components:** Use [Mantine](https://mantine.dev/) for building UI components to ensure consistency and accessibility.
+- **UI Components:** Use [Mantine](https://mantine.dev/) for building UI components to ensure consistency and accessibility. **Avoid native HTML elements** (`<div>`, `<button>`, `<input>`, `<table>`, etc.) — always prefer the Mantine equivalent (`Box`, `Button`, `TextInput`, `Table`, etc.).
