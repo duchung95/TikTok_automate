@@ -7,13 +7,23 @@ from tkinter import ttk, filedialog, messagebox
 import csv
 import json
 import os
+import sys
 from datetime import date
 from urllib.parse import urlparse
 import openpyxl
 
 # ─── Config ────────────────────────────────────────────────────────────────────
-SCRIPT_DIR   = os.path.dirname(os.path.abspath(__file__))
-MAPPING_FILE = os.path.join(SCRIPT_DIR, "flashship_mapping.json")
+# When frozen by PyInstaller, bundled data lives in sys._MEIPASS.
+# The output file is always written next to the running executable / .app.
+if getattr(sys, "frozen", False):
+    _BUNDLE_DIR = sys._MEIPASS                          # bundled resources
+else:
+    _BUNDLE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# Always save exported files to the Desktop
+SCRIPT_DIR   = os.path.join(os.path.expanduser("~"), "Desktop")
+
+MAPPING_FILE = os.path.join(_BUNDLE_DIR, "flashship_mapping.json")
 
 CANCELLED_STATUSES = {"Cancelled", "Seller Cancel", "Cancel Request", "Unpaid"}
 VOUCHER_PREFIX = "Spend $"

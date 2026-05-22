@@ -1,23 +1,40 @@
-# macOS
+# ── macOS ────────────────────────────────────────────────────────────────────
 .DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
 
-# Python cache
+# LibreOffice / MS Office lock files
+.~lock.*
+
+# ── Python ───────────────────────────────────────────────────────────────────
 __pycache__/
-*.pyc
+*.py[cod]
 *.pyo
+*.pyd
+.pytest_cache/
+*.egg-info/
+dist_python/   # keep separate from PyInstaller dist/
 
-# TikTok order exports (contain customer PII)
+# ── PyInstaller build artefacts ──────────────────────────────────────────────
+build/
+dist/
+*.spec
+
+# ── TikTok order exports (contain customer PII) ──────────────────────────────
 All order-*.csv
 
-# FlashShip output files
+# ── FlashShip output / import files ─────────────────────────────────────────
 flashship_import_*.csv
 flashship_import_*.xlsx
 flashship_variants.csv
 
-# API docs PDF
+# ── Source / reference spreadsheets (large, not needed in repo) ─────────────
 flashship_api_docs.pdf
-
-# Variant & template source files (large, not needed in repo)
 FlashPOD_Variant ID.xlsx
 FlashPOD_Variant ID.xlsx - COMFORT COLOR 1717.csv
 Ship by FlashPOD, TikTok.xlsx
+Stock_*.xlsx
+
