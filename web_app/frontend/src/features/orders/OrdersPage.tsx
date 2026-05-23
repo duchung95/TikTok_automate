@@ -1,14 +1,17 @@
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { Stack, Group, Button, Alert, Text } from '@mantine/core'
-import { IconUpload, IconAlertCircle, IconArrowDown } from '@tabler/icons-react'
+import { IconUpload, IconAlertCircle, IconArrowDown, IconDownload } from '@tabler/icons-react'
 import { useOrdersStore } from './useOrdersStore'
 import { OrdersTable } from './OrdersTable'
+import { exportToXlsx, getPartialExportViolations } from './exportXlsx'
 
 export function OrdersPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [isExporting, setIsExporting] = useState(false)
+  const [exportError, setExportError] = useState<string | null>(null)
   const {
     items, checked, isLoading, error,
-    importCsv, updateItem, toggleChecked, selectAll, clearAll, checkedItems,
+    importCsv, updateItem, toggleChecked, selectAll, clearAll,
   } = useOrdersStore()
 
   const needsAttentionCount = items.filter(
@@ -16,14 +19,31 @@ export function OrdersPage() {
   ).length
 
   const checkedCount = Object.values(checked).filter(Boolean).length
-
-  // suppress unused warning — will be wired up in Step 3
-  void checkedItems
+  const checkedIndices = new Set(
+    Object.entries(checked).filter(([, v]) => v).map(([k]) => Number(k))
+  )
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (file) importCsv(file)
     e.target.value = ''
+  }
+
+  async function handleExport() {
+    setExportError(null)
+    const violations = getPartialExportViolations(items, checkedIndices)
+    if (violations.length > 0) {
+      setExportError(
+        'Không thể xuất — đơn bị chia lẻ:\n' + violations.join('\n')
+      )
+      return
+    }
+    setIsExporting(true)
+    try {
+      await exportToXlsx(items, checkedIndices)
+    } finally {
+      setIsExporting(false)
+    }
   }
 
   return (
@@ -50,6 +70,12 @@ export function OrdersPage() {
               Jump to first
             </Button>
           </Group>
+        </Alert>
+      )}
+
+      {exportError && (
+        <Alert color="red" title="Lỗi xuất file" withCloseButton onClose={() => setExportError(null)}>
+          <Text size="sm" style={{ whiteSpace: 'pre-line' }}>{exportError}</Text>
         </Alert>
       )}
 
@@ -82,8 +108,14 @@ export function OrdersPage() {
           {checkedCount > 0 && (
             <Text size="sm" c="dimmed">{checkedCount} selected</Text>
           )}
-          <Button variant="outline" disabled={checkedCount === 0}>
-            Export XLSX
+          <Button
+            leftSection={<IconDownload size={16} />}
+            variant="outline"
+            disabled={checkedCount === 0}
+            loading={isExporting}
+            onClick={handleExport}
+          >
+            Export XLSX {checkedCount > 0 ? `(${checkedCount})` : ''}
           </Button>
           <Button disabled={checkedCount === 0}>
             Submit {checkedCount > 0 ? checkedCount : ''} orders →

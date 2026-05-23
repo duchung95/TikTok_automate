@@ -6,8 +6,8 @@ import {
   type ColumnDef,
   type SortingState,
 } from '@tanstack/react-table'
-import { useState, useMemo, useRef } from 'react'
-import { Checkbox, Badge, Text, Box, Stack, Group, TextInput, Image, Tooltip } from '@mantine/core'
+import { useState, useMemo, useRef, useEffect } from 'react'
+import { Checkbox, Badge, Text, Box, Stack, Group, TextInput, Tooltip } from '@mantine/core'
 import type { OrderItem } from './types'
 import { extractGdriveId, gdriveThumbnailUrl } from './gdriveUtils'
 import { isRowReady } from './csvParser'
@@ -120,6 +120,59 @@ interface UrlQuadItem {
   onChange: (val: string) => void
 }
 
+const MAX_RETRIES = 3
+const RETRY_DELAY_MS = 800
+
+/**
+ * Renders a Google Drive thumbnail with automatic retry on load failure.
+ *
+ * Root cause: on the first request in a browser tab, Google's CDN hasn't
+ * established a session yet and may return an auth redirect (HTML) instead
+ * of the image — causing a broken/question-mark state.
+ * By the time a second input tries the same URL, the session is warmed up.
+ *
+ * Fix: retry up to MAX_RETRIES times after RETRY_DELAY_MS each time.
+ * `key={thumbUrl-attempt}` forces a fresh <img> element on every retry,
+ * clearing any cached failure state in the browser.
+ */
+function GdriveImage({ href, thumbUrl }: { href: string; thumbUrl: string }) {
+  const [attempt, setAttempt] = useState(0)
+  const [hasFailed, setHasFailed] = useState(false)
+
+  // Reset whenever a new URL is set
+  useEffect(() => {
+    setAttempt(0)
+    setHasFailed(false)
+  }, [thumbUrl])
+
+  function handleError() {
+    if (attempt < MAX_RETRIES) {
+      setTimeout(() => setAttempt(a => a + 1), RETRY_DELAY_MS)
+    } else {
+      setHasFailed(true)
+    }
+  }
+
+  if (hasFailed) {
+    return <Box w={80} h={80} style={{ borderRadius: 4, background: 'var(--mantine-color-gray-2)' }} />
+  }
+
+  return (
+    <Tooltip label="Click to open" position="top">
+      <a href={href} target="_blank" rel="noreferrer">
+        <img
+          key={`${thumbUrl}-${attempt}`}
+          src={thumbUrl}
+          width={80}
+          height={80}
+          onError={handleError}
+          style={{ borderRadius: 4, objectFit: 'cover', display: 'block' }}
+        />
+      </a>
+    </Tooltip>
+  )
+}
+
 function UrlQuad({ items }: { items: UrlQuadItem[] }) {
   return (
     <Group gap="md" align="flex-start">
@@ -140,15 +193,10 @@ function UrlQuad({ items }: { items: UrlQuadItem[] }) {
             />
             <Group gap={4} align="center" style={{ width: 180 }}>
               <Text size="10px" c="dimmed" style={{ flex: 1, textAlign: 'center' }}>{label}</Text>
-              {thumbUrl ? (
-                <Tooltip label="Click to open" position="top">
-                  <a href={value} target="_blank" rel="noreferrer">
-                    <Image src={thumbUrl} w={80} h={80} radius="sm" style={{ objectFit: 'cover' }} />
-                  </a>
-                </Tooltip>
-              ) : (
-                <Box w={80} h={80} style={{ borderRadius: 4, background: 'var(--mantine-color-gray-2)' }} />
-              )}
+              {thumbUrl
+                ? <GdriveImage href={value} thumbUrl={thumbUrl} />
+                : <Box w={80} h={80} style={{ borderRadius: 4, background: 'var(--mantine-color-gray-2)' }} />
+              }
             </Group>
           </Stack>
         )

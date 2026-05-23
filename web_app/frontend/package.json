@@ -7,13 +7,15 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "test": "vitest"
+    "test": "vitest",
+    "package": "pnpm build && node scripts/package.mjs"
   },
   "dependencies": {
     "@mantine/core": "^7.17.0",
     "@mantine/hooks": "^7.17.0",
     "@tabler/icons-react": "^3.31.0",
     "@tanstack/react-table": "^8.21.3",
+    "exceljs": "^4.4.0",
     "papaparse": "^5.5.3",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
@@ -26,6 +28,7 @@
     "@vitejs/plugin-react": "^4.5.0",
     "typescript": "^5.8.3",
     "vite": "^6.3.5",
+    "vite-plugin-singlefile": "^2.3.3",
     "vitest": "^3.2.2"
   }
 }

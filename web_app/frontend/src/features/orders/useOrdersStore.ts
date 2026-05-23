@@ -2,8 +2,17 @@ import { useState, useCallback } from 'react'
 import Papa from 'papaparse'
 import { parseCsvRows, markPartialOrders } from './csvParser'
 import type { OrderItem } from './types'
+import rawMapping from '../../flashship_mapping.json'
 
-const MAPPING_URL = './flashship_mapping.json'
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const raw = rawMapping as any
+const MAPPING: Record<string, string> = Object.fromEntries(
+  Object.entries(raw.variant_map as Record<string, unknown>)
+    .filter(([, v]) => v != null)
+    .map(([k, v]) => [k, String(v)])
+)
+const COLOR_FIX: Record<string, string> = raw.color_fix ?? {}
+const SIZE_FIX: Record<string, string>  = raw.size_fix  ?? {}
 
 type CheckedState = Record<string, boolean>  // row index → checked
 
@@ -15,21 +24,14 @@ export function useOrdersStore() {
 
   const importCsv = useCallback(async (file: File) => {
     setIsLoading(true)
-    setError(null);
-    const a = 5;
+    setError(null)
     try {
-      const raw = await fetch(MAPPING_URL).then(r => r.json())
-      const mapping: Record<string, string> = Object.fromEntries(
-        Object.entries(raw.variant_map as Record<string, number>).map(([k, v]) => [k, String(v)])
-      )
-      const colorFix: Record<string, string> = raw.color_fix ?? {}
-      const sizeFix: Record<string, string>  = raw.size_fix  ?? {}
       const text = await file.text()
       const { data } = Papa.parse<Record<string, string>>(text, {
         header: true,
         skipEmptyLines: true,
       })
-      const parsed = markPartialOrders(parseCsvRows(data, mapping, colorFix, sizeFix))
+      const parsed = markPartialOrders(parseCsvRows(data, MAPPING, COLOR_FIX, SIZE_FIX))
       setItems(parsed)
       setChecked({})
     } catch (e) {
