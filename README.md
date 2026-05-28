@@ -1,47 +1,112 @@
-# TikTok Shop → FlashShip Order Processor
+# TikTok Shop → FlashPOD Order Processor
 
-A desktop tool (Python / tkinter) that reads a **TikTok Shop CSV export** and generates a **FlashShip-compatible XLSX import file**.
+A local web app that reads a **TikTok Shop CSV export**, lets you fill in design/mockup URLs, and exports to either a **FlashShip XLSX file** or a **Google Sheet**.
 
-## Features
+---
 
-- 📂 Opens any TikTok Shop order CSV export
-- Automatically filters to **"To ship"** orders only — cancels, vouchers, and already-shipped orders are excluded
-- Shows a scrollable table with order date, customer, address, product, and variant info
-- 🔒 Rows with no FlashShip **Variant ID** are locked (highlighted red) — cannot be selected or exported; must be processed manually
-- ✏ Inline editing for **Link Label**, **Design Front (Mặt trước)**, and **Design Back (Mặt sau)** with URL validation
-- Requires all three link fields to be filled before export
-- 💾 Exports a ready-to-upload `.xlsx` file matching the FlashShip import template format
+## Running the App
 
-## Files
+Double-click `start.command` inside the zip folder.
 
-| File | Purpose |
-|---|---|
-| `process_tiktik_order.py` | Main application |
-| `flashship_mapping.json` | Maps TikTok variation strings → FlashShip variant IDs |
+> **First time on a new Mac:** right-click → **Open** to bypass the macOS Gatekeeper warning. After that, double-click works normally.
 
-## Requirements
+This starts a local server at `http://localhost:3000` and opens the app in your browser automatically. No installation needed — Python 3 is built into every modern Mac.
 
-```
-Python 3.9+
-openpyxl
-```
-
-Install dependencies:
-```bash
-pip3 install openpyxl
-```
+---
 
 ## Usage
 
+1. Click **Nhập CSV** and select your TikTok Shop order export
+2. Fill in **Link Label**, **Design Front/Back**, **Mockup Front/Back** URLs for each order
+3. Check the orders you want to export
+4. Click **Export XLSX** to download a FlashShip-ready file, **or**
+5. Click **Lưu vào Google Sheet** to append directly to the fulfillment Google Sheet
+
+---
+
+## Google Sign-In Setup (one-time, per Google Cloud project)
+
+The app uses Google OAuth to write to Google Sheets. Follow these steps **once** to set it up:
+
+### Step 1 — Create a Google Cloud Project
+1. Go to [https://console.cloud.google.com](https://console.cloud.google.com)
+2. Click the project dropdown (top left) → **New Project**
+3. Name it `FlashPOD App` → **Create**
+
+### Step 2 — Enable APIs
+1. **APIs & Services** → **Library**
+2. Search **"Google Sheets API"** → **Enable**
+3. Search **"Google Drive API"** → **Enable**
+
+### Step 3 — Configure OAuth Consent Screen
+1. **APIs & Services** → **OAuth consent screen**
+2. Choose **External** → **Create**
+3. Fill in:
+   - App name: `FlashPOD`
+   - User support email: your email
+   - Developer contact email: your email
+4. Click **Save and Continue** through all steps
+
+### Step 4 — Add Test Users
+> ⚠️ While the app is in **Testing** mode, only explicitly added users can sign in.
+
+1. **APIs & Services** → **OAuth consent screen**
+2. Scroll to **Test users** → **+ Add Users**
+3. Add the Gmail address(es) that will use the app
+4. Click **Save**
+
+### Step 5 — Create OAuth Client ID
+1. **APIs & Services** → **Credentials** → **+ Create Credentials** → **OAuth client ID**
+2. Application type: **Web application**
+3. Name: `FlashPOD Local`
+4. Under **Authorised JavaScript origins** add:
+   ```
+   http://localhost:3000
+   http://localhost:5173
+   http://localhost:5174
+   ```
+5. Click **Create** — copy the **Client ID** (ends in `.apps.googleusercontent.com`)
+
+### Step 6 — Configure the App
+Copy `.env.example` to `.env` and fill in your values:
 ```bash
-python3 process_tiktik_order.py
+cp web_app/frontend/.env.example web_app/frontend/.env
 ```
 
-1. Click **Mở file TikTok CSV** and select your TikTok order export
-2. Check/uncheck rows to include in the export
-3. Click each cell under **Link Label**, **Mặt trước**, **Mặt sau** to enter URLs
-4. Click **Xuất file FlashShip XLSX** — the file saves next to the script and opens in Finder
+```env
+VITE_GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
+VITE_GOOGLE_SHEET_FULLFILL_ID=your-sheet-id-here
+```
 
-## Variant Mapping
+The Sheet ID is in the Google Sheet URL:
+```
+https://docs.google.com/spreadsheets/d/<SHEET_ID>/edit
+```
 
-`flashship_mapping.json` contains the mapping from TikTok `Variation` values (e.g. `"Bay, M"`) to FlashShip numeric variant IDs. Update this file if new products or sizes are added.
+---
+
+## Development
+
+```bash
+cd web_app/frontend
+pnpm install
+pnpm dev        # dev server at http://localhost:5173
+pnpm test       # run unit tests
+pnpm build      # production build
+pnpm package    # build + zip → Desktop
+```
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Framework | React 18 + TypeScript |
+| Build | Vite 6 + `vite-plugin-singlefile` |
+| UI | Mantine 7 |
+| Table | TanStack Table 8 |
+| CSV parse | papaparse |
+| XLSX export | ExcelJS |
+| Google Auth | `@react-oauth/google` |
+| Tests | Vitest |
