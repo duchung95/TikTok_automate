@@ -1,6 +1,6 @@
 # TikTok Shop → FlashPOD Web App — Plan & Status
 
-_Last updated: 2025-07 (session 3)_
+_Last updated: 2026-05-28 (session 4)_
 
 ---
 
@@ -162,7 +162,7 @@ ready            → all above pass
 
 ## Build Phases
 
-### Phase 1a — Frontend only ← **IN PROGRESS**
+### Phase 1a — Frontend only ✅ DONE
 - [x] Scaffold frontend (Vite + React + TS + Mantine)
 - [x] CSV parse in browser
 - [x] Variant mapping from static JSON
@@ -173,11 +173,42 @@ ready            → all above pass
 - [x] Partial order locking + guard
 - [x] Single-file build (works via `file://`)
 - [x] `pnpm package` → zip on Desktop
-- [ ] Fix `needsAttentionCount` to use `getRowStatus`
-- [ ] Vietnamese attention banner
-- [ ] Navbar width → 140 px
+- [x] Fix `needsAttentionCount` to use `getRowStatus`
+- [x] Vietnamese attention banner
+- [x] Navbar width → 140 px
 
-### Phase 1b — Backend Foundation
+### Phase 1b — Google Sheets Export ← **NEXT**
+
+> **Prerequisite (one-time Google Cloud setup):**
+> 1. Create a project in [Google Cloud Console](https://console.cloud.google.com)
+> 2. Enable the **Google Sheets API** and **Google Drive API**
+> 3. Create an **OAuth 2.0 Client ID** (Web application type)
+> 4. Add `http://localhost` (and `http://localhost:<PORT>`) as authorized JavaScript origins
+> 5. Copy the Client ID — safe to bundle in the app (it's public)
+> 6. Share the target Google Sheet with any Google account that will sign in
+
+**Why OAuth (not service account):**
+- Service account key in a local HTML file is a security risk (anyone with the file can extract it)
+- OAuth Client ID is public and safe to bundle
+- Token is cached in `localStorage` — user signs in once
+
+**Why localhost (not `file://`):**
+- Google OAuth blocks `file://` origins
+- `scripts/start.command` will serve `dist/` on `http://localhost:<PORT>` instead of opening the file directly — UX is the same (double-click → browser opens)
+
+**Tasks:**
+- [ ] Update `scripts/start.command` to serve `dist/` via a local HTTP server on `http://localhost`
+- [ ] `SettingsPage.tsx` — add fields: OAuth Client ID, Google Sheet URL; Google Sign-In / Sign-Out button; persist in `localStorage`
+- [ ] `src/features/orders/gsheetExport.ts` *(new)* — `appendToSheet(items, checkedIndices)`:
+  - Authenticate via OAuth token from `localStorage`
+  - Read existing rows from sheet to collect existing Order IDs
+  - Detect duplicates → show confirmation modal (Bỏ qua / Ghi đè / Huỷ)
+  - Append new rows (or overwrite duplicates) via Google Sheets API
+- [ ] `OrdersPage.tsx` — new "Lưu vào Google Sheet" button (separate from XLSX export)
+- [ ] Google Sheet columns = FlashShip 37 columns + `Customer Name`, `Phone`, `Address`, `City`, `State`, `Zip`, `Order Date/Time`
+- [ ] Update `docs/web-app-plan.md`
+
+### Phase 1c — Backend Foundation
 - [ ] Scaffold `backend/` — FastAPI + venv
 - [ ] Port `csv_parser` + `variant_mapper` from Python V1
 - [ ] Build FlashPOD API client (`flashpod_client.py`)
