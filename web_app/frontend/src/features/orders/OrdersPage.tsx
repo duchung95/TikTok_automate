@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { Stack, Group, Button, Alert, Text, Tooltip } from '@mantine/core'
 import { IconUpload, IconAlertCircle, IconArrowDown, IconDownload } from '@tabler/icons-react'
 import { useOrdersStore } from './useOrdersStore'
-import { OrdersTable } from './OrdersTable'
+import { OrdersTable, getRowStatus } from './OrdersTable'
 import { exportToXlsx, getPartialExportViolations } from './exportXlsx'
 
 export function OrdersPage() {
@@ -15,7 +15,7 @@ export function OrdersPage() {
   } = useOrdersStore()
 
   const needsAttentionCount = items.filter(
-    item => !item.variantId || !item.designFront
+    item => getRowStatus(item) !== 'ready'
   ).length
 
   const checkedCount = Object.values(checked).filter(Boolean).length
@@ -53,11 +53,11 @@ export function OrdersPage() {
         <Alert
           icon={<IconAlertCircle size={16} />}
           color="yellow"
-          title={`${needsAttentionCount} order${needsAttentionCount > 1 ? 's' : ''} need attention`}
+          title={`${needsAttentionCount} đơn hàng cần chú ý`}
           withCloseButton={false}
         >
           <Group justify="space-between">
-            <Text size="sm">Some orders are missing a Variant ID or Design Front URL.</Text>
+            <Text size="sm">Một số đơn hàng chưa đủ thông tin để xuất file.</Text>
             <Button
               size="xs"
               variant="light"
@@ -67,7 +67,7 @@ export function OrdersPage() {
                 document.querySelector('[data-needs-attention]')?.scrollIntoView({ behavior: 'smooth' })
               }
             >
-              Jump to first
+              Đến đơn đầu tiên
             </Button>
           </Group>
         </Alert>
@@ -126,7 +126,7 @@ export function OrdersPage() {
       </Group>
 
       {error && (
-        <Alert color="red" title="Error loading CSV">{error}</Alert>
+        <Alert color="red" title="Lỗi đọc file CSV">{error}</Alert>
       )}
 
       {items.length === 0 && !error && (

@@ -21,7 +21,7 @@ interface OrdersTableProps {
 
 type RowStatus = 'locked' | 'partial' | 'needs-link-label' | 'needs-design' | 'needs-mockup' | 'ready'
 
-function getRowStatus(item: OrderItem): RowStatus {
+export function getRowStatus(item: OrderItem): RowStatus {
   if (!item.variantId && !item.isPartialLock) return 'locked'
   if (item.isPartialLock) return 'partial'
   if (!item.linkLabel.trim()) return 'needs-link-label'

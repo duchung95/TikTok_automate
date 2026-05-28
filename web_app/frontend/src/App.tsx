@@ -16,7 +16,7 @@ export function App() {
   const { pathname } = useLocation()
 
   return (
-    <AppShell navbar={{ width: 200, breakpoint: 'sm' }} padding="md" header={{ height: 52 }}>
+    <AppShell navbar={{ width: 140, breakpoint: 'sm' }} padding="md" header={{ height: 52 }}>
       <AppShell.Header p="sm">
         <Group justify="space-between">
           <Text fw={700} size="lg">🛍 TikTok → FlashPOD</Text>
