@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { Stack, Group, Button, Alert, Text } from '@mantine/core'
+import { Stack, Group, Button, Alert, Text, Tooltip } from '@mantine/core'
 import { IconUpload, IconAlertCircle, IconArrowDown, IconDownload } from '@tabler/icons-react'
 import { useOrdersStore } from './useOrdersStore'
 import { OrdersTable } from './OrdersTable'
@@ -117,9 +117,11 @@ export function OrdersPage() {
           >
             Export XLSX {checkedCount > 0 ? `(${checkedCount})` : ''}
           </Button>
-          <Button disabled={checkedCount === 0}>
-            Submit {checkedCount > 0 ? checkedCount : ''} orders →
-          </Button>
+          <Tooltip label="Tính năng đang phát triển" position="top">
+            <Button disabled>
+              Submit orders →
+            </Button>
+          </Tooltip>
         </Group>
       </Group>
 

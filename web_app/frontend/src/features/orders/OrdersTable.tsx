@@ -7,7 +7,7 @@ import {
   type SortingState,
 } from '@tanstack/react-table'
 import { useState, useMemo, useRef, useEffect } from 'react'
-import { Checkbox, Badge, Text, Box, Stack, Group, TextInput, Tooltip } from '@mantine/core'
+import { Checkbox, Badge, Text, Box, Stack, Group, TextInput, Tooltip, Modal, Button } from '@mantine/core'
 import type { OrderItem } from './types'
 import { extractGdriveId, gdriveThumbnailUrl } from './gdriveUtils'
 import { isRowReady } from './csvParser'
@@ -135,9 +135,10 @@ const RETRY_DELAY_MS = 800
  * `key={thumbUrl-attempt}` forces a fresh <img> element on every retry,
  * clearing any cached failure state in the browser.
  */
-function GdriveImage({ href, thumbUrl }: { href: string; thumbUrl: string }) {
+function GdriveImage({ href, thumbUrl, label }: { href: string; thumbUrl: string; label: string }) {
   const [attempt, setAttempt] = useState(0)
   const [hasFailed, setHasFailed] = useState(false)
+  const [previewOpen, setPreviewOpen] = useState(false)
 
   // Reset whenever a new URL is set
   useEffect(() => {
@@ -158,18 +159,45 @@ function GdriveImage({ href, thumbUrl }: { href: string; thumbUrl: string }) {
   }
 
   return (
-    <Tooltip label="Click to open" position="top">
-      <a href={href} target="_blank" rel="noreferrer">
+    <>
+      <Tooltip label="Click to preview" position="top">
         <img
           key={`${thumbUrl}-${attempt}`}
           src={thumbUrl}
           width={80}
           height={80}
           onError={handleError}
-          style={{ borderRadius: 4, objectFit: 'cover', display: 'block' }}
+          onClick={() => setPreviewOpen(true)}
+          style={{ borderRadius: 4, objectFit: 'cover', display: 'block', cursor: 'pointer' }}
         />
-      </a>
-    </Tooltip>
+      </Tooltip>
+
+      <Modal
+        opened={previewOpen}
+        onClose={() => setPreviewOpen(false)}
+        title={label}
+        centered
+        size="65vw"
+        styles={{ body: { height: '65vh', display: 'flex', flexDirection: 'column' } }}
+      >
+        <Stack gap="md" align="center" style={{ flex: 1, justifyContent: 'center' }}>
+          <img
+            src={thumbUrl}
+            style={{ maxWidth: '100%', maxHeight: '100%', borderRadius: 8, objectFit: 'contain' }}
+          />
+          <Button
+            component="a"
+            href={href}
+            target="_blank"
+            rel="noreferrer"
+            variant="light"
+            size="sm"
+          >
+            Mở trong Google Drive ↗
+          </Button>
+        </Stack>
+      </Modal>
+    </>
   )
 }
 
@@ -194,7 +222,7 @@ function UrlQuad({ items }: { items: UrlQuadItem[] }) {
             <Group gap={4} align="center" style={{ width: 180 }}>
               <Text size="10px" c="dimmed" style={{ flex: 1, textAlign: 'center' }}>{label}</Text>
               {thumbUrl
-                ? <GdriveImage href={value} thumbUrl={thumbUrl} />
+                ? <GdriveImage href={value} thumbUrl={thumbUrl} label={label} />
                 : <Box w={80} h={80} style={{ borderRadius: 4, background: 'var(--mantine-color-gray-2)' }} />
               }
             </Group>
