@@ -250,3 +250,14 @@ ready            → all above pass
 - **pnpm hijacked by VS Code task**: `.vscode/tasks.json` auto-starts `pnpm dev` on folder open — run build commands with `./node_modules/.bin/` prefix directly in terminal to avoid interference.
 - **Google Drive image warmup**: First image load after a cold session may fail — `GdriveImage` retries up to 3× with 800 ms delay.
 - **`null` variants in mapping**: Some entries in `flashship_mapping.json` have `null` values — filtered out in `useOrdersStore.ts` pre-processing.
+
+---
+
+## Changelog
+
+### 2026-05-28: Improved Google Drive image preview sign-in UX
+- Sign-in modal now appears on input blur or preview click, only once per field.
+- Modal/ignore state is managed per field in `UrlQuad`.
+- `GdriveImage` is now stateless for modal logic.
+- Login logic and scopes are consistent with `App.tsx`.
+- Fully Vietnamese UI for all auth prompts.

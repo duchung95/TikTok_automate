@@ -138,16 +138,14 @@ const RETRY_DELAY_MS = 800
  * `key={thumbUrl-attempt}` forces a fresh <img> element on every retry,
  * clearing any cached failure state in the browser.
  */
-function GdriveImage({ href, fileId, publicThumbnailUrl, label }: { href: string; fileId: string; publicThumbnailUrl: string; label: string }) {
+function GdriveImage({ href, fileId, publicThumbnailUrl, label, ignore, onShowModal }: {
+  href: string; fileId: string; publicThumbnailUrl: string; label: string;
+  ignore: boolean; onShowModal: () => void;
+}) {
   const [imgUrl, setImgUrl] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(false)
-  const [showModal, setShowModal] = useState(false)
-  const [ignore, setIgnore] = useState(false)
-  const login = useGoogleLogin({
-    onSuccess: () => { setShowModal(false); setIgnore(false); },
-    scope: 'https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/spreadsheets',
-  })
+  const [previewOpen, setPreviewOpen] = useState(false)
 
   useEffect(() => {
     let revoked = false
@@ -182,39 +180,86 @@ function GdriveImage({ href, fileId, publicThumbnailUrl, label }: { href: string
 
   const handlePreviewClick = () => {
     if (!isSignedIn() && !ignore) {
-      setShowModal(true)
+      onShowModal()
+    } else if (imgUrl) {
+      setPreviewOpen(true)
     }
   }
 
   return (
     <>
-      <Modal opened={showModal} onClose={() => setShowModal(false)} title="Yêu cầu đăng nhập Google" centered>
-        <Box mb="md">Bạn cần đăng nhập Google để xem ảnh. Tiếp tục mà không đăng nhập có thể không xem được ảnh. Đăng nhập Google?</Box>
-        <Button color="blue" onClick={() => login()}>Đăng nhập Google</Button>
-        <Button color="gray" ml="sm" onClick={() => { setIgnore(true); setShowModal(false) }}>Bỏ qua</Button>
-      </Modal>
       {loading && <Loader size="sm" />}
       {error && <Box color="red">Không tải được ảnh</Box>}
       {!loading && !error && imgUrl && (
-        <img
-          src={imgUrl}
-          alt={label}
-          style={{ width: 80, height: 80, borderRadius: 4, objectFit: 'cover', cursor: 'pointer' }}
-          onClick={handlePreviewClick}
-        />
+        <Tooltip label="Nhấn để xem lớn" position="top">
+          <img
+            src={imgUrl}
+            alt={label}
+            style={{ width: 80, height: 80, borderRadius: 4, objectFit: 'cover', cursor: 'pointer' }}
+            onClick={handlePreviewClick}
+          />
+        </Tooltip>
       )}
+      <Modal
+        opened={previewOpen}
+        onClose={() => setPreviewOpen(false)}
+        title={label}
+        centered
+        size="65vw"
+        styles={{ body: { height: '65vh', display: 'flex', flexDirection: 'column' } }}
+      >
+        <Stack gap="md" align="center" style={{ flex: 1, justifyContent: 'center' }}>
+          <img
+            src={imgUrl || ''}
+            style={{ maxWidth: '100%', maxHeight: '100%', borderRadius: 8, objectFit: 'contain' }}
+          />
+          <Button
+            component="a"
+            href={href}
+            target="_blank"
+            rel="noreferrer"
+            variant="light"
+            size="sm"
+          >
+            Mở trong Google Drive ↗
+          </Button>
+        </Stack>
+      </Modal>
     </>
   )
 }
 
 function UrlQuad({ items }: { items: UrlQuadItem[] }) {
+  const [modalState, setModalState] = useState<Record<string, { show: boolean; ignore: boolean }>>({})
+  const login = useGoogleLogin({
+    onSuccess: () => {
+      setModalState(s => {
+        const newState = { ...s }
+        Object.keys(newState).forEach(k => { newState[k].show = false; newState[k].ignore = false })
+        return newState
+      })
+    },
+    scope: 'https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/spreadsheets',
+  })
+
+  const handleBlur = (label: string, value: string) => {
+    const fileId = extractGdriveId(value)
+    if (fileId && !isSignedIn() && !(modalState[label]?.ignore)) {
+      setModalState(s => ({ ...s, [label]: { show: true, ignore: false } }))
+    }
+  }
+
+  const handleIgnore = (label: string) => {
+    setModalState(s => ({ ...s, [label]: { show: false, ignore: true } }))
+  }
+
   return (
     <Group gap="md" align="flex-start">
       {items.map(({ label, value, onChange }) => {
-        const thumbUrl = (() => {
-          const id = extractGdriveId(value)
-          return id ? gdriveThumbnailUrl(id, 400) : null
-        })()
+        const fileId = extractGdriveId(value)
+        const publicThumbnailUrl = fileId ? gdriveThumbnailUrl(fileId, 400) : ''
+        const showModal = modalState[label]?.show || false
+        const ignore = modalState[label]?.ignore || false
         return (
           <Stack key={label} gap={3}>
             <TextInput
@@ -223,16 +268,27 @@ function UrlQuad({ items }: { items: UrlQuadItem[] }) {
               placeholder={label}
               value={value}
               onChange={e => onChange(e.currentTarget.value)}
+              onBlur={() => handleBlur(label, value)}
               style={{ width: 180, flexShrink: 0 }}
             />
             <Group gap={4} align="center" style={{ width: 180 }}>
               <Text size="10px" c="dimmed" style={{ flex: 1, textAlign: 'center' }}>{label}</Text>
-              {thumbUrl
-                ? (() => {
-                    const fileId = extractGdriveId(value)
-                    const publicThumbnailUrl = fileId ? gdriveThumbnailUrl(fileId, 400) : ''
-                    return <GdriveImage href={value} fileId={fileId ?? ''} publicThumbnailUrl={publicThumbnailUrl} label={label} />
-                  })()
+              {fileId
+                ? <>
+                    <GdriveImage
+                      href={value}
+                      fileId={fileId}
+                      publicThumbnailUrl={publicThumbnailUrl}
+                      label={label}
+                      ignore={ignore}
+                      onShowModal={() => setModalState(s => ({ ...s, [label]: { show: true, ignore: false } }))}
+                    />
+                    <Modal opened={showModal} onClose={() => setModalState(s => ({ ...s, [label]: { ...s[label], show: false } }))} title="Yêu cầu đăng nhập Google" centered>
+                      <Box mb="md">Bạn cần đăng nhập Google để xem ảnh. Tiếp tục mà không đăng nhập có thể không xem được ảnh. Đăng nhập Google?</Box>
+                      <Button color="blue" onClick={() => login()}>Đăng nhập Google</Button>
+                      <Button color="gray" ml="sm" onClick={() => handleIgnore(label)}>Bỏ qua</Button>
+                    </Modal>
+                  </>
                 : <Box w={80} h={80} style={{ borderRadius: 4, background: 'var(--mantine-color-gray-2)' }} />
               }
             </Group>
