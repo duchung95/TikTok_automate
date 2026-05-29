@@ -1,3 +1,13 @@
+## Feature Completion Policy
+
+- A feature may only be marked as "done" in documentation or status tables if:
+  1. The UI is implemented and visible in the app.
+  2. The business logic is complete and tested.
+  3. All relevant tests are passing.
+  4. Documentation is updated.
+  5. The feature has been demoed or reviewed by another team member (or yourself, with screenshots).
+- Do not update the plan/status as "done" until all of the above are true.
+- Use checklists in PRs and issues to enforce this process.
 
 ## Task planning and problem-solving
 <!-- the most important problem-solving guidelines -->
