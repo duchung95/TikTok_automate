@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import Papa from 'papaparse'
 import { parseCsvRows, markPartialOrders } from './csvParser'
 import type { OrderItem } from './types'
@@ -14,13 +14,46 @@ const MAPPING: Record<string, string> = Object.fromEntries(
 const COLOR_FIX: Record<string, string> = raw.color_fix ?? {}
 const SIZE_FIX: Record<string, string>  = raw.size_fix  ?? {}
 
+const LOCAL_STORAGE_KEY = "ordersPageState"
+
 type CheckedState = Record<string, boolean>  // row index → checked
 
 export function useOrdersStore() {
-  const [items, setItems] = useState<OrderItem[]>([])
-  const [checked, setChecked] = useState<CheckedState>({})
+  // Restore from localStorage if available
+  const getInitialItems = (): OrderItem[] => {
+    const saved = localStorage.getItem(LOCAL_STORAGE_KEY)
+    if (saved) {
+      try {
+        let parsed = JSON.parse(saved);
+        parsed = parsed.items.sort((a: any, b: any) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime())
+        return parsed || []
+      } catch {}
+    }
+    return []
+  }
+  const getInitialChecked = (): CheckedState => {
+    const saved = localStorage.getItem(LOCAL_STORAGE_KEY)
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved)
+        return parsed.checked || {}
+      } catch {}
+    }
+    return {}
+  }
+
+  const [items, setItems] = useState<OrderItem[]>(getInitialItems)
+  const [checked, setChecked] = useState<CheckedState>(getInitialChecked)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Persist to localStorage on change
+  useEffect(() => {
+    localStorage.setItem(
+      LOCAL_STORAGE_KEY,
+      JSON.stringify({ items, checked })
+    )
+  }, [items, checked])
 
   const importCsv = useCallback(async (file: File) => {
     setIsLoading(true)
@@ -31,9 +64,12 @@ export function useOrdersStore() {
         header: true,
         skipEmptyLines: true,
       })
-      const parsed = markPartialOrders(parseCsvRows(data, MAPPING, COLOR_FIX, SIZE_FIX))
+      let parsed = markPartialOrders(parseCsvRows(data, MAPPING, COLOR_FIX, SIZE_FIX))
+      // Sort by orderDate descending (newest first).
+      parsed = parsed.sort((a, b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime())
       setItems(parsed)
       setChecked({})
+      // items and checked will be persisted by useEffect
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to parse CSV')
     } finally {
@@ -62,7 +98,19 @@ export function useOrdersStore() {
   const checkedItems = items.filter((_, i) => checked[String(i)])
 
   return {
-    items, checked, isLoading, error,
-    importCsv, updateItem, toggleChecked, selectAll, clearAll, checkedItems,
+    items,
+    checked,
+    isLoading,
+    error,
+    importCsv,
+    setItems,
+    setChecked,
+    setIsLoading,
+    setError,
+    updateItem,
+    toggleChecked,
+    selectAll,
+    clearAll,
+    checkedItems,
   }
 }
