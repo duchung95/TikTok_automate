@@ -7,9 +7,12 @@ import {
   type SortingState,
 } from '@tanstack/react-table'
 import { useState, useMemo, useRef, useEffect } from 'react'
-import { Checkbox, Badge, Text, Box, Stack, Group, TextInput, Tooltip, Modal, Button } from '@mantine/core'
+import { Checkbox, Badge, Text, Box, Stack, Group, TextInput, Tooltip, Loader } from '@mantine/core'
 import type { OrderItem } from './types'
 import { extractGdriveId, gdriveThumbnailUrl } from './gdriveUtils'
+import { Modal, Button } from '@mantine/core'
+import { useGoogleLogin } from '@react-oauth/google'
+import { isSignedIn, getAccessToken } from './googleSheetExport'
 import { isRowReady } from './csvParser'
 
 interface OrdersTableProps {
@@ -135,70 +138,71 @@ const RETRY_DELAY_MS = 800
  * `key={thumbUrl-attempt}` forces a fresh <img> element on every retry,
  * clearing any cached failure state in the browser.
  */
-function GdriveImage({ href, thumbUrl, label }: { href: string; thumbUrl: string; label: string }) {
-  const [attempt, setAttempt] = useState(0)
-  const [hasFailed, setHasFailed] = useState(false)
-  const [previewOpen, setPreviewOpen] = useState(false)
+function GdriveImage({ href, fileId, publicThumbnailUrl, label }: { href: string; fileId: string; publicThumbnailUrl: string; label: string }) {
+  const [imgUrl, setImgUrl] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(false)
+  const [showModal, setShowModal] = useState(false)
+  const [ignore, setIgnore] = useState(false)
+  const login = useGoogleLogin({
+    onSuccess: () => { setShowModal(false); setIgnore(false); },
+    scope: 'https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/spreadsheets',
+  })
 
-  // Reset whenever a new URL is set
   useEffect(() => {
-    setAttempt(0)
-    setHasFailed(false)
-  }, [thumbUrl])
-
-  function handleError() {
-    if (attempt < MAX_RETRIES) {
-      setTimeout(() => setAttempt(a => a + 1), RETRY_DELAY_MS)
+    let revoked = false
+    let objectUrl: string | null = null
+    if (isSignedIn() && fileId) {
+      setLoading(true)
+      setError(false)
+      fetch(
+        `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
+        { headers: { Authorization: `Bearer ${getAccessToken()}` } }
+      )
+        .then(res => {
+          if (!res.ok) throw new Error('Không tải được ảnh')
+          return res.blob()
+        })
+        .then(blob => {
+          objectUrl = URL.createObjectURL(blob)
+          if (!revoked) setImgUrl(objectUrl)
+        })
+        .catch(() => { if (!revoked) setError(true) })
+        .finally(() => { if (!revoked) setLoading(false) })
+      return () => {
+        revoked = true
+        if (objectUrl) URL.revokeObjectURL(objectUrl)
+      }
+    } else if (ignore && publicThumbnailUrl) {
+      setImgUrl(publicThumbnailUrl)
     } else {
-      setHasFailed(true)
+      setImgUrl(null)
     }
-  }
+  }, [fileId, ignore])
 
-  if (hasFailed) {
-    return <Box w={80} h={80} style={{ borderRadius: 4, background: 'var(--mantine-color-gray-2)' }} />
+  const handlePreviewClick = () => {
+    if (!isSignedIn() && !ignore) {
+      setShowModal(true)
+    }
   }
 
   return (
     <>
-      <Tooltip label="Click to preview" position="top">
-        <img
-          key={`${thumbUrl}-${attempt}`}
-          src={thumbUrl}
-          width={80}
-          height={80}
-          crossOrigin="anonymous"
-          onError={handleError}
-          onClick={() => setPreviewOpen(true)}
-          style={{ borderRadius: 4, objectFit: 'cover', display: 'block', cursor: 'pointer' }}
-        />
-      </Tooltip>
-
-      <Modal
-        opened={previewOpen}
-        onClose={() => setPreviewOpen(false)}
-        title={label}
-        centered
-        size="65vw"
-        styles={{ body: { height: '65vh', display: 'flex', flexDirection: 'column' } }}
-      >
-        <Stack gap="md" align="center" style={{ flex: 1, justifyContent: 'center' }}>
-          <img
-            src={thumbUrl}
-            crossOrigin="anonymous"
-            style={{ maxWidth: '100%', maxHeight: '100%', borderRadius: 8, objectFit: 'contain' }}
-          />
-          <Button
-            component="a"
-            href={href}
-            target="_blank"
-            rel="noreferrer"
-            variant="light"
-            size="sm"
-          >
-            Mở trong Google Drive ↗
-          </Button>
-        </Stack>
+      <Modal opened={showModal} onClose={() => setShowModal(false)} title="Yêu cầu đăng nhập Google" centered>
+        <Box mb="md">Bạn cần đăng nhập Google để xem ảnh. Tiếp tục mà không đăng nhập có thể không xem được ảnh. Đăng nhập Google?</Box>
+        <Button color="blue" onClick={() => login()}>Đăng nhập Google</Button>
+        <Button color="gray" ml="sm" onClick={() => { setIgnore(true); setShowModal(false) }}>Bỏ qua</Button>
       </Modal>
+      {loading && <Loader size="sm" />}
+      {error && <Box color="red">Không tải được ảnh</Box>}
+      {!loading && !error && imgUrl && (
+        <img
+          src={imgUrl}
+          alt={label}
+          style={{ width: 80, height: 80, borderRadius: 4, objectFit: 'cover', cursor: 'pointer' }}
+          onClick={handlePreviewClick}
+        />
+      )}
     </>
   )
 }
@@ -224,7 +228,11 @@ function UrlQuad({ items }: { items: UrlQuadItem[] }) {
             <Group gap={4} align="center" style={{ width: 180 }}>
               <Text size="10px" c="dimmed" style={{ flex: 1, textAlign: 'center' }}>{label}</Text>
               {thumbUrl
-                ? <GdriveImage href={value} thumbUrl={thumbUrl} label={label} />
+                ? (() => {
+                    const fileId = extractGdriveId(value)
+                    const publicThumbnailUrl = fileId ? gdriveThumbnailUrl(fileId, 400) : ''
+                    return <GdriveImage href={value} fileId={fileId ?? ''} publicThumbnailUrl={publicThumbnailUrl} label={label} />
+                  })()
                 : <Box w={80} h={80} style={{ borderRadius: 4, background: 'var(--mantine-color-gray-2)' }} />
               }
             </Group>

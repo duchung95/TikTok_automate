@@ -24,7 +24,7 @@ export function App() {
       saveAccessToken(access_token)
       setSignedIn(true)
     },
-    scope: 'https://www.googleapis.com/auth/spreadsheets',
+    scope: 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.readonly',
   })
 
   const handleSignOut = () => {
