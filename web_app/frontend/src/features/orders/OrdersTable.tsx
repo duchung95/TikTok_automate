@@ -166,6 +166,7 @@ function GdriveImage({ href, thumbUrl, label }: { href: string; thumbUrl: string
           src={thumbUrl}
           width={80}
           height={80}
+          crossOrigin="anonymous"
           onError={handleError}
           onClick={() => setPreviewOpen(true)}
           style={{ borderRadius: 4, objectFit: 'cover', display: 'block', cursor: 'pointer' }}
@@ -183,6 +184,7 @@ function GdriveImage({ href, thumbUrl, label }: { href: string; thumbUrl: string
         <Stack gap="md" align="center" style={{ flex: 1, justifyContent: 'center' }}>
           <img
             src={thumbUrl}
+            crossOrigin="anonymous"
             style={{ maxWidth: '100%', maxHeight: '100%', borderRadius: 8, objectFit: 'contain' }}
           />
           <Button
