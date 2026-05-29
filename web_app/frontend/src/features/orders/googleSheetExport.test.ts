@@ -1,6 +1,23 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, beforeAll, vi } from 'vitest'
 import { http, HttpResponse } from 'msw'
 import { server } from '../../test/server'
+// Add a default handler for the append endpoint to prevent 500 errors
+beforeAll(() => {
+  server.use(
+    http.post(
+      (req) => new URL(req.request.url).pathname.endsWith(':append'),
+      () =>
+        HttpResponse.json({
+          updates: {
+            updatedRows: 1,
+            updatedColumns: 5,
+            updatedCells: 5,
+          },
+          spreadsheetId: 'dummy-id',
+        })
+    )
+  )
+})
 import type { OrderItem } from './types'
 import {
   saveAccessToken,
@@ -221,7 +238,10 @@ describe('appendToSheet', () => {
         capturedAuth = request.headers.get('Authorization') ?? ''
         return HttpResponse.json({ values: [['Order ID']] })
       }),
-      http.post(`${SHEETS_API}/values/:range:append`, () => HttpResponse.json({}))
+      http.post(
+        (req) => new URL(req.request.url).pathname.endsWith(':append'),
+        () => HttpResponse.json({})
+      )
     )
 
     await appendToSheet({ items: [makeItem()], checkedIndices: new Set([0]), onDuplicatesFound: vi.fn() })
@@ -236,11 +256,14 @@ describe('appendToSheet', () => {
       http.get(`${SHEETS_API}/values/:range`, () =>
         HttpResponse.json({ values: [['Order ID']] }) // only header row
       ),
-      http.post(`${SHEETS_API}/values/:range:append`, async ({ request }) => {
-        const body = await request.json() as { values: string[][] }
-        appendedRows = body.values
-        return HttpResponse.json({})
-      })
+      http.post(
+        (req) => new URL(req.request.url).pathname.endsWith(':append'),
+        async ({ request }) => {
+          const body = await request.json() as { values: string[][] }
+          appendedRows = body.values
+          return HttpResponse.json({})
+        }
+      )
     )
 
     const items = [makeItem({ orderId: 'ORD-001' }), makeItem({ orderId: 'ORD-002' })]
@@ -256,7 +279,10 @@ describe('appendToSheet', () => {
 
     server.use(
       http.get(`${SHEETS_API}/values/:range`, () => HttpResponse.json({ values: [['Order ID']] })),
-      http.post(`${SHEETS_API}/values/:range:append`, () => HttpResponse.json({}))
+      http.post(
+        (req) => new URL(req.request.url).pathname.endsWith(':append'),
+        () => HttpResponse.json({})
+      )
     )
 
     await appendToSheet({ items: [makeItem({ orderId: 'ORD-NEW' })], checkedIndices: new Set([0]), onDuplicatesFound })
@@ -271,7 +297,10 @@ describe('appendToSheet', () => {
       http.get(`${SHEETS_API}/values/:range`, () =>
         HttpResponse.json({ values: [['Order ID'], ['HD - ORD-001']] })
       ),
-      http.post(`${SHEETS_API}/values/:range:append`, () => HttpResponse.json({}))
+      http.post(
+        (req) => new URL(req.request.url).pathname.endsWith(':append'),
+        () => HttpResponse.json({})
+      )
     )
 
     await appendToSheet({ items: [makeItem({ orderId: 'ORD-001' })], checkedIndices: new Set([0]), onDuplicatesFound })
@@ -303,11 +332,14 @@ describe('appendToSheet', () => {
       http.get(`${SHEETS_API}/values/:range`, () =>
         HttpResponse.json({ values: [['Order ID'], ['HD - ORD-001']] })
       ),
-      http.post(`${SHEETS_API}/values/:range:append`, async ({ request }) => {
-        const body = await request.json() as { values: string[][] }
-        appendedRows = body.values
-        return HttpResponse.json({})
-      })
+      http.post(
+        (req) => new URL(req.request.url).pathname.endsWith(':append'),
+        async ({ request }) => {
+          const body = await request.json() as { values: string[][] }
+          appendedRows = body.values
+          return HttpResponse.json({})
+        }
+      )
     )
 
     const items = [makeItem({ orderId: 'ORD-001' }), makeItem({ orderId: 'ORD-002' })]
@@ -329,11 +361,14 @@ describe('appendToSheet', () => {
       http.get(`${SHEETS_API}/values/:range`, () =>
         HttpResponse.json({ values: [['Order ID'], ['HD - ORD-001']] })
       ),
-      http.post(`${SHEETS_API}/values/:range:append`, async ({ request }) => {
-        const body = await request.json() as { values: string[][] }
-        appendedRows = body.values
-        return HttpResponse.json({})
-      })
+      http.post(
+        (req) => new URL(req.request.url).pathname.endsWith(':append'),
+        async ({ request }) => {
+          const body = await request.json() as { values: string[][] }
+          appendedRows = body.values
+          return HttpResponse.json({})
+        }
+      )
     )
 
     const items = [makeItem({ orderId: 'ORD-001' }), makeItem({ orderId: 'ORD-002' })]
@@ -367,11 +402,14 @@ describe('appendToSheet', () => {
 
     server.use(
       http.get(`${SHEETS_API}/values/:range`, () => HttpResponse.json({ values: [['Order ID']] })),
-      http.post(`${SHEETS_API}/values/:range:append`, async ({ request }) => {
-        const body = await request.json() as { values: string[][] }
-        appendedRows = body.values
-        return HttpResponse.json({})
-      })
+      http.post(
+        (req) => new URL(req.request.url).pathname.endsWith(':append'),
+        async ({ request }) => {
+          const body = await request.json() as { values: string[][] }
+          appendedRows = body.values
+          return HttpResponse.json({})
+        }
+      )
     )
 
     const item = makeItem({ orderId: 'ORD-001', orderDate: '2026-05-20' })

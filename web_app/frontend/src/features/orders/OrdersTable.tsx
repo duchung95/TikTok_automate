@@ -1,3 +1,4 @@
+import React from 'react'
 import {
   useReactTable,
   getCoreRowModel,
@@ -12,7 +13,7 @@ import type { OrderItem } from './types'
 import { extractGdriveId, gdriveThumbnailUrl } from './gdriveUtils'
 import { Modal, Button } from '@mantine/core'
 import { useGoogleLogin } from '@react-oauth/google'
-import { isSignedIn, getAccessToken } from './googleSheetExport'
+import { useGoogleAuth } from './GoogleAuthContext'
 import { isRowReady } from './csvParser'
 
 interface OrdersTableProps {
@@ -142,6 +143,7 @@ function GdriveImage({ href, fileId, publicThumbnailUrl, label, ignore, onShowMo
   href: string; fileId: string; publicThumbnailUrl: string; label: string;
   ignore: boolean; onShowModal: () => void;
 }) {
+  const { signedIn, accessToken } = useGoogleAuth()
   const [imgUrl, setImgUrl] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(false)
@@ -150,12 +152,12 @@ function GdriveImage({ href, fileId, publicThumbnailUrl, label, ignore, onShowMo
   useEffect(() => {
     let revoked = false
     let objectUrl: string | null = null
-    if (isSignedIn() && fileId) {
+    if (signedIn && fileId && accessToken) {
       setLoading(true)
       setError(false)
       fetch(
         `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
-        { headers: { Authorization: `Bearer ${getAccessToken()}` } }
+        { headers: { Authorization: `Bearer ${accessToken}` } }
       )
         .then(res => {
           if (!res.ok) throw new Error('Không tải được ảnh')
@@ -176,10 +178,10 @@ function GdriveImage({ href, fileId, publicThumbnailUrl, label, ignore, onShowMo
     } else {
       setImgUrl(null)
     }
-  }, [fileId, ignore])
+  }, [fileId, ignore, signedIn, accessToken])
 
   const handlePreviewClick = () => {
-    if (!isSignedIn() && !ignore) {
+    if (!signedIn && !ignore) {
       onShowModal()
     } else if (imgUrl) {
       setPreviewOpen(true)
@@ -230,21 +232,22 @@ function GdriveImage({ href, fileId, publicThumbnailUrl, label, ignore, onShowMo
 }
 
 function UrlQuad({ items }: { items: UrlQuadItem[] }) {
+  const { signedIn, signIn } = useGoogleAuth()
   const [modalState, setModalState] = useState<Record<string, { show: boolean; ignore: boolean }>>({})
-  const login = useGoogleLogin({
-    onSuccess: () => {
+
+  useEffect(() => {
+    if (signedIn) {
       setModalState(s => {
         const newState = { ...s }
-        Object.keys(newState).forEach(k => { newState[k].show = false; newState[k].ignore = false })
+        Object.keys(newState).forEach(k => { newState[k].show = false })
         return newState
       })
-    },
-    scope: 'https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/spreadsheets',
-  })
+    }
+  }, [signedIn])
 
   const handleBlur = (label: string, value: string) => {
     const fileId = extractGdriveId(value)
-    if (fileId && !isSignedIn() && !(modalState[label]?.ignore)) {
+    if (fileId && !signedIn && !(modalState[label]?.ignore)) {
       setModalState(s => ({ ...s, [label]: { show: true, ignore: false } }))
     }
   }
@@ -285,7 +288,7 @@ function UrlQuad({ items }: { items: UrlQuadItem[] }) {
                     />
                     <Modal opened={showModal} onClose={() => setModalState(s => ({ ...s, [label]: { ...s[label], show: false } }))} title="Yêu cầu đăng nhập Google" centered>
                       <Box mb="md">Bạn cần đăng nhập Google để xem ảnh. Tiếp tục mà không đăng nhập có thể không xem được ảnh. Đăng nhập Google?</Box>
-                      <Button color="blue" onClick={() => login()}>Đăng nhập Google</Button>
+                      <Button color="blue" onClick={signIn}>Đăng nhập Google</Button>
                       <Button color="gray" ml="sm" onClick={() => handleIgnore(label)}>Bỏ qua</Button>
                     </Modal>
                   </>
@@ -431,7 +434,7 @@ export function OrdersTable({ items, checked, onToggleChecked, onUpdateItem }: O
               const status = getRowStatus(row.original)
               const bg = getRowBg(row.original, orderColorMap)
               return (
-                <>
+                <React.Fragment key={row.id}>
                   {/* Row 1 — order info */}
                   <tr
                     key={`${row.id}-info`}
@@ -468,7 +471,7 @@ export function OrdersTable({ items, checked, onToggleChecked, onUpdateItem }: O
                       </Stack>
                     </td>
                   </tr>
-                </>
+                </React.Fragment>
               )
             })
           })()}
