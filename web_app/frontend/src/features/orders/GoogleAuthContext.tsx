@@ -10,11 +10,11 @@ interface GoogleAuthContextType {
   signOut: () => void
 }
 
-const GoogleAuthContext = createContext<GoogleAuthContextType | undefined>(undefined)
+const GoogleAuthContext = createContext<GoogleAuthContextType | undefined>(undefined);
 
 export function GoogleAuthProvider({ children }: { children: ReactNode }) {
-  const [accessToken, setAccessToken] = useState<string | null>(() => localStorage.getItem('google_access_token'))
-  const [error, setError] = useState<string | null>(null)
+  const [accessToken, setAccessToken] = useState<string | null>(() => localStorage.getItem('google_access_token'));
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (accessToken) {
@@ -22,7 +22,7 @@ export function GoogleAuthProvider({ children }: { children: ReactNode }) {
     } else {
       localStorage.removeItem('google_access_token')
     }
-  }, [accessToken])
+  }, [accessToken]);
 
   const login = useGoogleLogin({
     onSuccess: ({ access_token }) => {
@@ -39,16 +39,16 @@ export function GoogleAuthProvider({ children }: { children: ReactNode }) {
       setAccessToken(null)
     },
     scope: 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.readonly',
-  })
+  });
 
   const signIn = () => {
-    login()
-  }
+    login();
+  };
 
   const signOut = () => {
-    setAccessToken(null)
-    setError(null)
-  }
+    setAccessToken(null);
+    setError(null);
+  };
 
   return (
     <GoogleAuthContext.Provider
@@ -62,11 +62,11 @@ export function GoogleAuthProvider({ children }: { children: ReactNode }) {
     >
       {children}
     </GoogleAuthContext.Provider>
-  )
-}
+  );
+};
 
 export function useGoogleAuth() {
-  const ctx = useContext(GoogleAuthContext)
-  if (!ctx) throw new Error('useGoogleAuth must be used within a GoogleAuthProvider')
-  return ctx
-}
+  const ctx = useContext(GoogleAuthContext);
+  if (!ctx) throw new Error('useGoogleAuth must be used within a GoogleAuthProvider');
+  return ctx;
+};
