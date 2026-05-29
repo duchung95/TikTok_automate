@@ -1,9 +1,12 @@
-import { AppShell, NavLink, Text, Group, Badge } from '@mantine/core'
+import { AppShell, NavLink, Text, Group, Badge, Button } from '@mantine/core'
 import { IconPackage, IconPhoto, IconSettings } from '@tabler/icons-react'
+
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom'
 import { OrdersPage } from './features/orders/OrdersPage'
 import { DesignsPage } from './features/designs/DesignsPage'
 import { SettingsPage } from './features/settings/SettingsPage'
+import { GoogleAuthProvider, useGoogleAuth } from './features/orders/GoogleAuthContext'
+
 
 const NAV_ITEMS = [
   { path: '/orders',   label: 'Orders',   icon: IconPackage  },
@@ -11,16 +14,24 @@ const NAV_ITEMS = [
   { path: '/settings', label: 'Settings', icon: IconSettings },
 ]
 
-export function App() {
+
+function AppContent() {
   const navigate = useNavigate()
   const { pathname } = useLocation()
+  const { signedIn, signIn, signOut } = useGoogleAuth()
 
   return (
-    <AppShell navbar={{ width: 200, breakpoint: 'sm' }} padding="md" header={{ height: 52 }}>
+    <AppShell navbar={{ width: 140, breakpoint: 'sm' }} padding="md" header={{ height: 52 }}>
       <AppShell.Header p="sm">
         <Group justify="space-between">
-          <Text fw={700} size="lg">🛍 TikTok → FlashPOD</Text>
-          <Badge color="orange" variant="light">UAT</Badge>
+          <Text fw={700} size="lg">🛍 TikTok → FlashPOD1</Text>
+          <Group gap="xs">
+            <Badge color="orange" variant="light">UAT</Badge>
+            {signedIn
+              ? <Button size="xs" variant="light" color="red" onClick={signOut}>Đăng xuất Google</Button>
+              : <Button size="xs" variant="light" color="blue" onClick={signIn}>Đăng nhập Google</Button>
+            }
+          </Group>
         </Group>
       </AppShell.Header>
 
@@ -45,5 +56,13 @@ export function App() {
         </Routes>
       </AppShell.Main>
     </AppShell>
+  )
+}
+
+export function App() {
+  return (
+    <GoogleAuthProvider>
+      <AppContent />
+    </GoogleAuthProvider>
   )
 }

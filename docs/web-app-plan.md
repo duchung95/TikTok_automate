@@ -1,241 +1,192 @@
-# Web App — Product Plan
+# TikTok Shop → FlashPOD Web App — Plan & Status
 
-## Overview
-
-A React + Python desktop app that replaces the current tkinter tool.
-- **Frontend**: React + TypeScript + Vite + Mantine
-- **Backend**: Python FastAPI (runs locally)
-- **Bundling**: PyInstaller + pywebview → single `.app` (no setup required on other machines)
-- **Package manager**: pnpm (frontend), pip/venv (backend)
+_Last updated: 2026-05-28 (session 6)_
 
 ---
 
 ## Architecture
 
 ```
-web_app/
-├── backend/                   # Python FastAPI
-│   ├── main.py                # App entry point, starts server
-│   ├── routers/
-│   │   ├── orders.py          # CSV parse + FlashPOD order CRUD
-│   │   ├── designs.py         # Design library management
-│   │   └── flashpod.py        # FlashPOD API proxy routes
-│   ├── services/
-│   │   ├── flashpod_client.py # FlashPOD HTTP client (all API calls)
-│   │   ├── csv_parser.py      # TikTok CSV → order items (ported from existing code)
-│   │   └── variant_mapper.py  # flashship_mapping.json lookups
-│   ├── models/
-│   │   └── schemas.py         # Pydantic models (OrderItem, Design, etc.)
-│   └── tests/                 # pytest — ported from existing 434 tests
-│
-├── frontend/                  # React + Vite
-│   └── src/
-│       ├── features/
-│       │   ├── orders/        # Orders table, CSV upload, submit
-│       │   ├── designs/       # Design library with image previews
-│       │   └── settings/      # API token config, UAT/prod toggle
-│       ├── api/               # Typed fetch wrappers for backend
-│       └── components/        # Shared UI components
+TiktokShop/
+├── web_app/
+│   └── frontend/                # React + Vite (TypeScript)
+│       ├── src/
+│       │   ├── features/
+│       │   │   ├── orders/      # CSV parse, table, export XLSX, export to GSheet
+│       │   │   └── settings/    # Google Sign-In, Sheet URL config
+│       │   ├── App.tsx          # AppShell layout + routing + GoogleOAuthProvider
+│       │   └── flashship_mapping.json  # statically imported (no fetch)
+│       ├── scripts/
+│       │   ├── package.mjs      # zip build → Desktop
+│       │   └── start.command    # serves dist/ on http://localhost:3000 (needed for OAuth)
+│       ├── .env                 # VITE_GOOGLE_CLIENT_ID, VITE_GOOGLE_SHEET_FULLFILL_ID
+│       ├── .env.example         # template with setup instructions
+│       ├── vite.config.ts       # base: './', viteSingleFile plugin
+│       └── package.json
 │
 └── docs/
-    └── web-app-plan.md        # This file
+    └── web-app-plan.md          # This file
 ```
+
+**Runtime**: Single `index.html` (all JS/CSS inlined by `vite-plugin-singlefile`).
+Launched via `start.command` (double-click) → serves on `http://localhost:3000` → required for Google OAuth.
+
+**Package manager**: `pnpm`
+**Build command**: `./node_modules/.bin/tsc --noEmit && ./node_modules/.bin/vite build && node scripts/package.mjs`
+**Output**: `flashpod_YYYY-MM-DD.zip` on Desktop
 
 ---
 
-## UI Design
+## Tech Stack
 
-### Layout — Mantine AppShell
-- `AppShell` with a persistent left `Navbar` + `Header`
-- **React Router** for routing — each page is a proper route
-- Adding future features = new route + new nav item only
-
-```
-┌─────────────────────────────────────────────────────┐
-│  🛍 TikTok → FlashPOD        [UAT ●]  [Settings ⚙] │  ← AppShell.Header
-├──────────┬──────────────────────────────────────────┤
-│          │                                          │
-│ 📦 Orders │   <-- routed content (AppShell.Main)    │  ← /orders
-│          │                                          │
-│ 🎨 Designs│                                        │  ← /designs
-│          │                                          │
-│ ⚙ Settings│                                       │  ← /settings
-│          │                                          │
-└──────────┴──────────────────────────────────────────┘
-     ↑ AppShell.Navbar
-```
-
-### Orders Page — single table, smart visual hierarchy (no tabs)
-
-**No tabs.** Everything is one flat table. Smart sorting and visual cues guide the user naturally.
-
-#### Attention banner (sticky, above the table)
-```
-┌─────────────────────────────────────────────────────────────┐
-│  ⚠ 8 orders need design URLs               [Jump to first ↓]│
-└─────────────────────────────────────────────────────────────┘
-```
-- Mantine `Alert` component, only shown when incomplete rows exist
-- **[Jump to first ↓]** scrolls to the first row that needs attention
-- Disappears automatically when all rows are complete
-
-#### Toolbar (below banner)
-```
-[📂 Upload CSV]   [☑ Select All]   [Export XLSX]   [Submit X orders →]
-```
-
-#### Table — default sort: needs attention first
-```
-┌──────────────────────────────────────────────────────────────┐
-│ 🔴 HD-001 │ John D. │ ...  ← locked, missing variant ID      │
-│ 🟡 HD-002 │ Jane S. │ ...  ← needs design URL filled  ✏     │
-│ 🟡 HD-003 │ Bob K.  │ ...  ← needs design URL filled  ✏     │
-│ ✅ HD-004 │ Alice M.│ ...  ← ready to export/submit          │
-│ ✅ HD-005 │ Carol T.│ ...  ← ready to export/submit          │
-└──────────────────────────────────────────────────────────────┘
-```
-
-- **Rows needing attention float to the top** on CSV load
-- User never needs to scroll to find incomplete rows
-- **TanStack Table** (`@tanstack/react-table`) powers the table — virtualization, sorting, two-row layout via row expansion. Scales from 10 to 500+ rows without rewrite.
-- Mantine components used **inside** TanStack cells for all visual elements — `Checkbox`, `Badge`, `TextInput`, `Image`, etc.
-- Checkboxes work exactly like V1: user checks what they want → Export or Submit
-
-#### Row states
-| State | Visual |
+| Layer | Technology |
 |---|---|
-| Missing Variant ID | 🔴 Red `Badge`, row locked (cannot check) |
-| Needs design URL | 🟡 Yellow `Badge` + ✏ indicator, checkable |
-| Ready | ✅ Green `Badge`, checkable |
-| Submitted | ✅ Green `Badge` + "Submitted", greyed out |
-| Failed | ❌ Red `Badge`, stays checked, error in `Tooltip` |
-| Pending | ⏳ Mantine `Loader`, row disabled during API call |
-
-#### Two-row layout per order
-- **Top row**: checkbox, order date, order ID, customer, product/variation, variant ID, qty, address
-- **Bottom row**: design URL fields with live image previews (`Mantine Image`) + status `Badge`
-- Click URL field → `TextInput` inline editor
-- Click 📚 → `Popover` to pick from Design Library (auto-fills all 4 URLs)
-
-
+| Framework | React 18 + TypeScript |
+| Build | Vite 6 + `vite-plugin-singlefile` |
+| UI | Mantine 7 |
+| Table | TanStack Table 8 |
+| CSV parse | papaparse |
+| XLSX export | ExcelJS 4.4 |
+| Google Auth | `@react-oauth/google` (implicit flow, token in `localStorage`) |
+| Google Sheets | Google Sheets REST API v4 (plain `fetch`) |
+| Tests | Vitest |
 
 ---
 
-## Submission Flow (Option A + lightweight confirm)
+## Current Status (Phase 1b — Google Sheets Export, in progress)
+| Variant mapping | Nested JSON, numeric IDs, color/size aliases (`mapVariant`) |
+| 6-state RowStatus | `locked / partial / needs-link-label / needs-design / needs-mockup / ready` |
+| Image preview modal | `65vw × 65vh`, `objectFit: contain`, "Mở trong Google Drive ↗" button |
+| Inline URL editing | `UrlField` + `UrlQuad` (Design Front/Back, Mockup Front/Back) — 180 px TextInput |
+| Static JSON import | `flashship_mapping.json` bundled into `index.html` (no `fetch`) |
+| Single-file build | `vite-plugin-singlefile` — all JS/CSS inlined, ~1.6 MB |
+| Vietnamese UI | Attention banner, CSV error alert fully in Vietnamese |
+| Navbar width | 140 px |
+| Item | Notes |
+|---|---|
+| `googleSheetExport.ts` | ✅ Token helpers, duplicate check, `appendToSheet()` — FlashShip 37 cols + `Order Date/Time` |
+| `App.tsx` | ✅ Wrapped with `GoogleOAuthProvider` |
 
-1. User uploads TikTok CSV → table populates
-2. User fills design URLs row by row (image previews load live)
-3. User checks ☑ rows to submit
-4. Clicks **[Submit X orders →]** (disabled until ≥1 valid row is checked)
-5. Small inline confirmation popover appears:
-   ```
-   Submit 3 orders to FlashPOD?   [Cancel]  [Confirm →]
-   ```
-6. Each checked row fires `POST /api/orders` → FlashPOD API
-7. Rows update in-place with status badge (✅ / ❌ / ⏳)
-8. Failed rows stay checked — user can fix + retry
-
-### "Ready to submit" criteria per row
-- ☑ Checked
-- Valid Variant ID exists
-- Design Front URL is filled (required by FlashPOD)
-- Not already successfully submitted
-
-### Optional fields (no block on submit, soft warning only)
-- Design Back, Mockup Front, Mockup Back, Link Label
-
+**Auth UX decision:** Sign In / Sign Out lives in the **header bar** (always visible). `SettingsPage.tsx` does NOT need a Google auth section.
 ---
 
-## Design Library
+## Key Files
 
-- Saved locally as JSON (no database for now — easy to migrate later)
-- Each design: name, tags, design front URL, design back URL, mockup front URL, mockup back URL, thumbnail preview
-- Accessible via 📚 button on any order row → popover with image grid
-- Select a design → auto-fills all 4 URL fields on that row instantly
+### `src/features/orders/csvParser.ts`
+- `parseOrderDate(raw)` — parses TikTok date strings
+- `shouldSkipRow(row)` — skips cancelled / test rows
+- `mapVariant(variation, mapping, colorFix, sizeFix)` — returns `variantId | null`
+- `parseCsvRows(raw, mapping)` — full parse pipeline
 
+- `FLASHSHIP_COLUMNS` — all 37 columns (exported const)
+- `buildFlashshipRow(item)` — defaults all columns to `""`, fills known fields; if `linkLabel.trim()` is non-empty → clears `Phone`, `State`, `Address line 1`, `Address line 2`, `City`, `Zip`
+- `getPartialExportViolations(items, checkedIndices)` — returns violation strings for partial-order selections
+- `exportToXlsx(items, checkedIndices)` — builds workbook, triggers native blob download as `flashship_YYYY-MM-DD.xlsx`
+
+### `src/features/orders/OrdersTable.tsx`
+- `export function getRowStatus(item): RowStatus` — determines row status across 6 states ✅
+- `GdriveImage` — retry-on-error image component with preview modal
+- `UrlQuad` — 4 URL input + thumbnail columns
+- Frozen row order via `frozenOrderRef` + `prevLengthRef`
+
+### `src/features/orders/OrdersTable.test.ts` *(new)*
+- 9 unit tests covering all 6 `getRowStatus` branches + edge cases
+### `src/features/orders/useOrdersStore.ts`
+- Imports `flashship_mapping.json` statically
+- Pre-processes `MAPPING`, `COLOR_FIX`, `SIZE_FIX` at module load
+- State: `items`, `checked`, `isLoading`, `error`
+- Actions: `importCsv`, `updateItem`, `toggleChecked`, `selectAll`, `clearAll`
+
+### `src/features/orders/OrdersPage.tsx`
+- Export XLSX button: wired, shows count, loading spinner, violation guard with red alert
+- Submit button: disabled with tooltip "Tính năng đang phát triển"
+- `needsAttentionCount` — uses `getRowStatus(item) !== 'ready'` ✅
+- Attention banner + CSV error alert — fully Vietnamese ✅
+
+### `src/features/orders/googleSheetExport.ts` *(new — Phase 1b)*
+- `saveAccessToken(token)` / `getAccessToken()` / `clearAccessToken()` / `isSignedIn()` — token helpers via `localStorage`
+- `appendToSheet({ items, checkedIndices, onDuplicatesFound })` — reads existing Order IDs, calls `onDuplicatesFound` if needed, appends rows
+- Sheet columns = FlashShip 37 columns + `Order Date/Time`
+
+### `src/features/settings/SettingsPage.tsx` *(planned — Phase 1b)*
 ---
 
-## Settings
+## XLSX Export — 37 Column Mapping
 
-- API token input (stored in macOS Keychain via `keyring`, not in files)
-- Toggle: UAT ↔ Production API URL
-- On first launch: prompt user to enter token if none found in Keychain
+Fixed values regardless of row data:
+| Column | Value |
+|---|---|
+| Shipping method | `1` |
+| DTF/DTG | `3` |
+| Country | `US` |
+| Order ID prefix | `HD -` |
 
----
-
-## Secrets / Environment
-
-- `.env` — local dev only, **never committed** (in `.gitignore`)
-- `.env.example` — committed, no real token
-- Production: token stored in macOS Keychain, read at runtime
-
----
-
-## Bundling
-
-### Phase 1a — No backend
-- Vite built with `base: "./"` so all asset paths are relative (works via `file://`)
-- `launcher.py` uses `pywebview` to open `dist/index.html` directly from disk — no server, no port
-- PyInstaller bundles `launcher.py` + `dist/` → single `TikTokShopWeb.app`
-- Estimated size: ~15–20 MB
-
-### Phase 1b+ — With FastAPI backend
-- `launcher.py` starts FastAPI on a random free port, waits until ready, then opens pywebview at `localhost:{port}`
-- Same double-click experience for the user — transparent upgrade
-- Estimated size: ~25–30 MB
-
-### Key Vite config
-```ts
-// vite.config.ts
-export default defineConfig({
-  base: "./",  // relative paths → works via file:// and localhost
-})
 ```
-
-Output: single `TikTokShopWeb.app` + zip — same install experience as current app (V1)
-
----
+ready            → all above pass
+```
 
 ## Build Phases
+- [x] Variant mapping from static JSON
+- [x] Orders table — two-row layout, frozen sort order
+- [x] Partial order locking + guard
+- [x] `pnpm package` → zip on Desktop
+- [x] Fix `needsAttentionCount` to use `getRowStatus`
+- [x] Vietnamese attention banner
 
-### Phase 1a — Frontend (no backend required) ← START HERE
-Goal: users can use the app immediately while backend is being built.
+> - OAuth Client ID: `890161770494-...apps.googleusercontent.com` stored in `.env`
+> - Fulfillment Sheet ID stored in `.env` as `VITE_GOOGLE_SHEET_FULLFILL_ID`
+> - Authorized origins: `http://localhost:3000`, `http://localhost:5173`
+- [x] `vite-env.d.ts` — typed `ImportMetaEnv`
+- [x] `googleSheetExport.ts` — token helpers, `checkDuplicates`, `appendToSheet`; columns = FlashShip 37 + `Order Date/Time`
+- [x] `App.tsx` — wrapped with `GoogleOAuthProvider`
+- [ ] `App.tsx` header — Google Sign In / Sign Out button + signed-in email display ← **NEXT**
+- [ ] `OrdersPage.tsx` — "Lưu vào Google Sheet" button; auto sign-in if needed; duplicate modal (Bỏ qua / Ghi đè / Huỷ)
 
-- [ ] Scaffold `frontend/` — Vite + React + TypeScript + Mantine (pnpm)
-- [ ] CSV parsed in the browser (pure JS — no backend needed)
-- [ ] Variant mapping loaded from `flashship_mapping.json` as a static asset
-- [ ] Orders table — two-row layout per order
-- [ ] Inline URL editing + live validation
-- [ ] Image previews in table cells (Google Drive thumbnails)
-- [ ] **Export to XLSX** using `exceljs` (same format as current app — works today)
-- [ ] Partial order locking (red/orange rows)
-- [ ] Select all / bulk check
-
-### Phase 1b — Backend Foundation
-Goal: scaffold the backend so API submission can be added without reworking the frontend.
-
-- [ ] Scaffold `backend/` — FastAPI + folder structure + venv
-- [ ] Port `csv_parser` + `variant_mapper` from existing Python code
+### Phase 1c — Backend Foundation
+- [ ] Scaffold `backend/` — FastAPI + venv
+- [ ] Port `csv_parser` + `variant_mapper` from Python V1
 - [ ] Build FlashPOD API client (`flashpod_client.py`)
-- [ ] Backend routes: `POST /csv/parse`, `GET /variants`, `POST /orders`, `DELETE /orders/:id`
-- [ ] Frontend switches from in-browser parse → backend parse (transparent to user)
+- [ ] Routes: `POST /csv/parse`, `GET /variants`, `POST /orders`, `DELETE /orders/:id`
+- [ ] Frontend switches to backend parse (transparent)
 
 ### Phase 2 — Direct API Submission
-Goal: submit orders directly to FlashPOD. Excel export stays as fallback.
-
 - [ ] Submit flow: confirm popover → `POST /api/orders` → in-place status badges
-- [ ] Status badges per row (✅ Submitted / ❌ Failed / ⏳ Pending)
+- [ ] Per-row status: ✅ Submitted / ❌ Failed / ⏳ Pending
 - [ ] Retry failed rows
-- [ ] Excel export remains available as fallback
+- [ ] XLSX export stays as fallback
 
 ### Phase 3 — Design Library
-- [ ] Design library page — grid of saved designs with image previews
-- [ ] Create / edit / delete design
-- [ ] "Apply design" picker on order rows (fills all 4 URLs at once)
-- [ ] Local JSON storage (no DB — easy to migrate later)
+- [ ] Design library page — grid with image previews
+- [ ] Create / edit / delete design entry
+- [ ] "Apply design" picker on order rows (fills all 4 URLs)
+- [ ] Local JSON storage
 
 ### Phase 4 — Settings + Bundling
 - [ ] Settings page — token entry, UAT/prod toggle
-- [ ] macOS Keychain integration (`keyring`)
-- [ ] PyInstaller build script (`build_web_mac.sh`)
-- [ ] pywebview wrapper (`launcher.py`) → single `.app` like current app
+- [ ] macOS Keychain (`keyring`)
+- [ ] PyInstaller / pywebview → single `.app`
+
+---
+
+## Known Issues / Notes
+
+- **pnpm hijacked by VS Code task**: `.vscode/tasks.json` auto-starts `pnpm dev` on folder open — run build commands with `./node_modules/.bin/` prefix directly in terminal to avoid interference.
+- **Google Drive image warmup**: First image load after a cold session may fail — `GdriveImage` retries up to 3× with 800 ms delay.
+- **`null` variants in mapping**: Some entries in `flashship_mapping.json` have `null` values — filtered out in `useOrdersStore.ts` pre-processing.
+
+---
+
+## Changelog
+### 2026-05-28: Robust Google OAuth context, unambiguous test selectors, all tests passing
+- All Google OAuth logic is managed via a global React Context (`GoogleAuthContext`).
+- All features (Google Sheets export, Google Drive image preview, modal logic) use this context for authentication.
+- All tests for authentication, export, and UI logic are passing (127/127).
+- Test reliability: mocks for `useGoogleLogin`, data-testid selectors, and state isolation.
+- Codebase is modular, DRY, and TypeScript-first; Mantine for UI.
+
+### 2026-05-28: Improved Google Drive image preview sign-in UX
+- Sign-in modal now appears on input blur or preview click, only once per field.
+- Modal/ignore state is managed per field in `UrlQuad`.
+- `GdriveImage` is now stateless for modal logic.
+- Login logic and scopes are consistent with `App.tsx`.
+- Fully Vietnamese UI for all auth prompts.

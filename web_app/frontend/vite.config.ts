@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite'
+import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import { viteSingleFile } from 'vite-plugin-singlefile'
 
@@ -6,7 +6,10 @@ export default defineConfig({
   base: './',
   plugins: [react(), viteSingleFile()],
   build: {
-    // Needed for viteSingleFile — disables the chunk size warning
     chunkSizeWarningLimit: 10_000,
+  },
+  test: {
+    environment: 'jsdom',
+    setupFiles: ['./src/test/setup.ts'],
   },
 })
