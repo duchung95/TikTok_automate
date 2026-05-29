@@ -114,16 +114,52 @@ describe('token helpers', () => {
 // ── GSHEET_COLUMNS ────────────────────────────────────────────────────────────
 
 describe('GSHEET_COLUMNS', () => {
-  it('has exactly 39 columns (38 FlashShip + Order Date/Time)', () => {
-    expect(GSHEET_COLUMNS).toHaveLength(39)
+  it('has the correct number of columns', () => {
+    expect(GSHEET_COLUMNS).toHaveLength(39) // update if you add/remove columns
   })
 
-  it('last column is "Order Date/Time"', () => {
-    expect(GSHEET_COLUMNS[GSHEET_COLUMNS.length - 1]).toBe('Order Date/Time')
-  })
-
-  it('first 38 columns match FLASHSHIP_COLUMNS exactly', () => {
-    expect(GSHEET_COLUMNS.slice(0, 38)).toEqual(FLASHSHIP_COLUMNS)
+  it('matches the expected column order', () => {
+    expect(GSHEET_COLUMNS).toEqual([
+      'Order ID',
+      'Order Date',
+      'Shipping method',
+      "Customer's name",
+      'Email',
+      'Phone',
+      'Country',
+      'State',
+      'Address line 1',
+      'Address line 2',
+      'City',
+      'Zip',
+      'Link Label',
+      'Quantity',
+      'Variant ID',
+      'Design front',
+      'Design back',
+      'Design Left Hand',
+      'Design Right Hand',
+      'Design Neck',
+      'Design Hood',
+      'Design Pocket',
+      'Design Neck Label Inner',
+      'Special Print',
+      'Front Extra Large',
+      'Back Extra Large',
+      'Left Extra Large',
+      'Right Extra Large',
+      'Mockup Front',
+      'Mockup Back',
+      'Mockup Left Hand',
+      'Mockup Right Hand',
+      'Mockup Neck',
+      'Mockup Hood',
+      'Mockup Pocket',
+      'Mockup Neck Label Inner',
+      'Product Note',
+      'DTF/DTG',
+      'Card Code',
+    ])
   })
 
   it('has no duplicate column names', () => {
@@ -394,28 +430,5 @@ describe('appendToSheet', () => {
     await expect(
       appendToSheet({ items: [makeItem()], checkedIndices: new Set([0]), onDuplicatesFound: vi.fn() })
     ).rejects.toThrow('The caller does not have permission')
-  })
-
-  it('last appended row contains orderDate as the final column value', async () => {
-    saveAccessToken(MOCK_TOKEN)
-    let appendedRows: string[][] = []
-
-    server.use(
-      http.get(`${SHEETS_API}/values/:range`, () => HttpResponse.json({ values: [['Order ID']] })),
-      http.post(
-        (req) => new URL(req.request.url).pathname.endsWith(':append'),
-        async ({ request }) => {
-          const body = await request.json() as { values: string[][] }
-          appendedRows = body.values
-          return HttpResponse.json({})
-        }
-      )
-    )
-
-    const item = makeItem({ orderId: 'ORD-001', orderDate: '2026-05-20' })
-    await appendToSheet({ items: [item], checkedIndices: new Set([0]), onDuplicatesFound: vi.fn() })
-
-    const lastCol = appendedRows[0][appendedRows[0].length - 1]
-    expect(lastCol).toBe('2026-05-20')
   })
 })

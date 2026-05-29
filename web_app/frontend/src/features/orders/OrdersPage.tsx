@@ -1,9 +1,12 @@
 import { useRef, useState } from 'react'
-import { Stack, Group, Button, Alert, Text, Tooltip } from '@mantine/core'
+import { Stack, Group, Button, Alert, Text, Tooltip, Modal } from '@mantine/core'
 import { IconUpload, IconAlertCircle, IconArrowDown, IconDownload } from '@tabler/icons-react'
 import { useOrdersStore } from './useOrdersStore'
 import { OrdersTable, getRowStatus } from './OrdersTable'
 import { exportToXlsx, getPartialExportViolations } from './exportXlsx'
+import { showNotification } from '@mantine/notifications'
+import { useGoogleAuth } from './GoogleAuthContext'
+import { appendToSheet } from './googleSheetExport'
 
 export function OrdersPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -22,6 +25,58 @@ export function OrdersPage() {
   const checkedIndices = new Set(
     Object.entries(checked).filter(([, v]) => v).map(([k]) => Number(k))
   )
+
+  // Google Sheets export state
+  const { signedIn, signIn, accessToken } = useGoogleAuth()
+  const [exportingToSheet, setExportingToSheet] = useState(false)
+  const [duplicateModal, setDuplicateModal] = useState<null | { duplicateOrderIds: string[], onAction: (action: 'skip' | 'overwrite' | 'cancel') => void }>(null)
+
+  // Handles exporting selected orders to Google Sheet (separate from Excel export)
+  const handleSaveToGoogleSheet = async () => {
+    if (checkedCount === 0) {
+      showNotification({
+        title: 'Chưa chọn đơn hàng',
+        message: 'Vui lòng chọn ít nhất một đơn hàng để xuất lên Google Sheet.',
+        color: 'yellow',
+      })
+      return
+    }
+    if (!signedIn) {
+      signIn()
+      return
+    }
+    setExportingToSheet(true)
+    try {
+      await appendToSheet({
+        items,
+        checkedIndices,
+        onDuplicatesFound: (result) => {
+          return new Promise((resolveModal) => {
+            setDuplicateModal({
+              duplicateOrderIds: result.duplicateOrderIds,
+              onAction: (action) => {
+                setDuplicateModal(null)
+                resolveModal(action)
+              }
+            })
+          })
+        }
+      })
+      showNotification({
+        title: 'Thành công',
+        message: 'Đã lưu đơn hàng lên Google Sheet thành công!',
+        color: 'green',
+      })
+    } catch (err: any) {
+      showNotification({
+        title: 'Lỗi',
+        message: err?.message || 'Có lỗi xảy ra khi xuất lên Google Sheet.',
+        color: 'red',
+      })
+    } finally {
+      setExportingToSheet(false)
+    }
+  }
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -108,6 +163,7 @@ export function OrdersPage() {
           {checkedCount > 0 && (
             <Text size="sm" c="dimmed">{checkedCount} selected</Text>
           )}
+          {/* Regular Excel export button */}
           <Button
             leftSection={<IconDownload size={16} />}
             variant="outline"
@@ -117,12 +173,41 @@ export function OrdersPage() {
           >
             Export XLSX {checkedCount > 0 ? `(${checkedCount})` : ''}
           </Button>
+          {/* Google Sheets export button */}
+          <Button
+            data-testid="export-google-sheet"
+            loading={exportingToSheet}
+            disabled={exportingToSheet}
+            onClick={handleSaveToGoogleSheet}
+            color="blue"
+            style={{ marginLeft: 8 }}
+          >
+            Lưu vào Google Sheet
+          </Button>
           <Tooltip label="Tính năng đang phát triển" position="top">
             <Button disabled>
               Submit orders →
             </Button>
           </Tooltip>
         </Group>
+      {/* Duplicate orders modal for Google Sheets export */}
+      <Modal
+        opened={!!duplicateModal}
+        onClose={() => setDuplicateModal(null)}
+        title="Đơn hàng trùng lặp"
+        centered
+      >
+        <div>
+          <div>
+            {`Có ${duplicateModal?.duplicateOrderIds.length ?? 0} đơn hàng đã tồn tại trên Google Sheet.`}
+          </div>
+          <div style={{ marginTop: 16, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <Button onClick={() => duplicateModal?.onAction('skip')} color="yellow">Bỏ qua</Button>
+            <Button onClick={() => duplicateModal?.onAction('overwrite')} color="red">Ghi đè</Button>
+            <Button onClick={() => duplicateModal?.onAction('cancel')} variant="default">Huỷ</Button>
+          </div>
+        </div>
+      </Modal>
       </Group>
 
       {error && (

@@ -7,9 +7,49 @@ const SHEET_NAME = 'Sheet1'
 const GSHEET_API = 'https://sheets.googleapis.com/v4/spreadsheets'
 
 // Extra columns appended after the 37 FlashShip columns
-const EXTRA_COLUMNS = ['Order Date/Time'] as const
+const EXTRA_COLUMNS = ['Order Date'] as const
 
-export const GSHEET_COLUMNS = [...FLASHSHIP_COLUMNS, ...EXTRA_COLUMNS] as const
+export const GSHEET_COLUMNS = [
+  'Order ID',
+  'Order Date',
+  'Shipping method',
+  "Customer's name",
+  'Email',
+  'Phone',
+  'Country',
+  'State',
+  'Address line 1',
+  'Address line 2',
+  'City',
+  'Zip',
+  'Link Label',
+  'Quantity',
+  'Variant ID',
+  'Design front',
+  'Design back',
+  'Design Left Hand',
+  'Design Right Hand',
+  'Design Neck',
+  'Design Hood',
+  'Design Pocket',
+  'Design Neck Label Inner',
+  'Special Print',
+  'Front Extra Large',
+  'Back Extra Large',
+  'Left Extra Large',
+  'Right Extra Large',
+  'Mockup Front',
+  'Mockup Back',
+  'Mockup Left Hand',
+  'Mockup Right Hand',
+  'Mockup Neck',
+  'Mockup Hood',
+  'Mockup Pocket',
+  'Mockup Neck Label Inner',
+  'Product Note',
+  'DTF/DTG',
+  'Card Code',
+] as const;
 
 // ── Token storage ────────────────────────────────────────────────────────────
 
@@ -53,9 +93,47 @@ async function fetchExistingOrderIds(token: string): Promise<{ ids: Set<string>;
 }
 
 function buildGsheetRow(item: OrderItem): string[] {
-  const flashshipRow = buildFlashshipRow(item)
-  const flashshipValues = FLASHSHIP_COLUMNS.map(col => String(flashshipRow[col] ?? ''))
-  return [...flashshipValues, item.orderDate]
+  return [
+    `HD - ${item.orderId}`,
+    item.orderDate ?? '',
+    '', // Shipping method
+    item.customer ?? '',
+    '', // Email
+    item.phone ?? '',
+    '', // Country
+    item.state ?? '',
+    item.address1 ?? '',
+    item.address2 ?? '',
+    item.city ?? '',
+    item.zip ?? '',
+    item.linkLabel ?? '',
+    String(item.quantity ?? ''),
+    item.variantId ?? '',
+    item.designFront ?? '',
+    item.designBack ?? '',
+    '', // Design Left Hand
+    '', // Design Right Hand
+    '', // Design Neck
+    '', // Design Hood
+    '', // Design Pocket
+    '', // Design Neck Label Inner
+    '', // Special Print
+    '', // Front Extra Large
+    '', // Back Extra Large
+    '', // Left Extra Large
+    '', // Right Extra Large
+    item.mockupFront ?? '',
+    item.mockupBack ?? '',
+    '', // Mockup Left Hand
+    '', // Mockup Right Hand
+    '', // Mockup Neck
+    '', // Mockup Hood
+    '', // Mockup Pocket
+    '', // Mockup Neck Label Inner
+    '', // Product Note
+    '3', // DTF/DTG
+    '', // Card Code
+  ];
 }
 
 // ── Duplicate detection result ───────────────────────────────────────────────

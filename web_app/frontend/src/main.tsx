@@ -12,7 +12,9 @@ createRoot(document.getElementById('root')!).render(
     <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
       <HashRouter>
         <MantineProvider>
-          <App />
+          
+            <App />
+          
         </MantineProvider>
       </HashRouter>
     </GoogleOAuthProvider>
