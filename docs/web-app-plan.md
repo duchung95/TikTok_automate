@@ -90,8 +90,10 @@ Launched via `start.command` (double-click) → serves on `http://localhost:3000
 | `vite-env.d.ts` | ✅ `ImportMetaEnv` typed for both env vars |
 | `googleSheetExport.ts` | ✅ Token helpers, duplicate check, `appendToSheet()` — FlashShip 37 cols + `Order Date/Time` |
 | `App.tsx` | ✅ Wrapped with `GoogleOAuthProvider` |
-| `App.tsx` header | ⬜ Add Google Sign In / Sign Out button + signed-in email display |
-| `OrdersPage.tsx` | ⬜ "Lưu vào Google Sheet" button — auto-triggers sign-in if not signed in, then exports; duplicate modal (Bỏ qua / Ghi đè / Huỷ) |
+| `App.tsx` header | ✅ Google Sign In / Sign Out button + signed-in state via global context |
+| `OrdersPage.tsx` | ✅ "Lưu vào Google Sheet" button — auto-triggers sign-in if not signed in, then exports; duplicate modal (Bỏ qua / Ghi đè / Huỷ); uses context |
+| GoogleAuthContext | ✅ Global context for auth state, token, sign-in/out; used by all features |
+| Auth tests | ✅ All selectors use data-testid; robust mocking; 100% pass |
 
 **Auth UX decision:** Sign In / Sign Out lives in the **header bar** (always visible). `SettingsPage.tsx` does NOT need a Google auth section.
 
@@ -254,6 +256,12 @@ ready            → all above pass
 ---
 
 ## Changelog
+### 2026-05-28: Robust Google OAuth context, unambiguous test selectors, all tests passing
+- All Google OAuth logic is managed via a global React Context (`GoogleAuthContext`).
+- All features (Google Sheets export, Google Drive image preview, modal logic) use this context for authentication.
+- All tests for authentication, export, and UI logic are passing (127/127).
+- Test reliability: mocks for `useGoogleLogin`, data-testid selectors, and state isolation.
+- Codebase is modular, DRY, and TypeScript-first; Mantine for UI.
 
 ### 2026-05-28: Improved Google Drive image preview sign-in UX
 - Sign-in modal now appears on input blur or preview click, only once per field.
