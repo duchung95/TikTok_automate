@@ -313,14 +313,14 @@ export function OrdersTable({ items, checked, onToggleChecked, onUpdateItem }: O
   if (items.length !== prevLengthRef.current) {
     prevLengthRef.current = items.length
     const indexed = items.map((item, i) => ({ item, i }))
-    indexed.sort((a, b) => STATUS_SORT_ORDER[getRowStatus(a.item)] - STATUS_SORT_ORDER[getRowStatus(b.item)])
+    //indexed.sort((a, b) => STATUS_SORT_ORDER[getRowStatus(a.item)] - STATUS_SORT_ORDER[getRowStatus(b.item)])
     frozenOrderRef.current = indexed.map(x => x.i)
   }
 
   const data = useMemo<RowData[]>(
     () => frozenOrderRef.current.map(i => ({ ...items[i], originalIndex: i })),
     [items]
-  )
+  );
 
   const columns = useMemo<ColumnDef<RowData>[]>(() => [
     {
