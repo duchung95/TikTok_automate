@@ -154,7 +154,7 @@ export function checkDuplicates(items: OrderItem[], existingIds: Set<string>): D
 // ── Append rows ──────────────────────────────────────────────────────────────
 
 async function appendRows(token: string, rows: string[][]): Promise<void> {
-  const range = encodeURIComponent(`${SHEET_NAME}!A:A`)
+  const range = encodeURIComponent(`${SHEET_NAME}!A:A`);
   const res = await fetch(
     `${GSHEET_API}/${SHEET_ID}/values/${range}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
     {
@@ -165,20 +165,23 @@ async function appendRows(token: string, rows: string[][]): Promise<void> {
       },
       body: JSON.stringify({ values: rows }),
     }
-  )
+  );
 
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}))
-    throw new Error(err?.error?.message ?? `Google Sheets API error: ${res.status}`)
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err?.error?.message ?? `Google Sheets API error: ${res.status}`);
+  } else {
+    window.alert('Đã lưu vào Google Sheets thành công!');
   }
+
 }
 
 async function overwriteRows(token: string, items: OrderItem[], existingIds: Set<string>, totalRows: number): Promise<void> {
   // For overwrite: append is simplest — delete existing matching rows first would require batchUpdate.
   // For now: we re-append duplicates as new rows (simpler, safe).
   // TODO: implement true overwrite via batchUpdate if needed.
-  const rows = items.map(buildGsheetRow)
-  await appendRows(token, rows)
+  const rows = items.map(buildGsheetRow);
+  await appendRows(token, rows);
 }
 
 // ── Main export function ─────────────────────────────────────────────────────

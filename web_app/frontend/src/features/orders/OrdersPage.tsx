@@ -8,7 +8,11 @@ import { showNotification } from '@mantine/notifications'
 import { useGoogleAuth } from './GoogleAuthContext'
 import { appendToSheet } from './googleSheetExport'
 
-export function OrdersPage() {
+/**
+ * Orders page component
+ * @returns JSX.Element
+ */
+export const OrdersPage = () => {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isExporting, setIsExporting] = useState(false)
   const [exportError, setExportError] = useState<string | null>(null)
@@ -29,22 +33,45 @@ export function OrdersPage() {
   // Google Sheets export state
   const { signedIn, signIn, accessToken } = useGoogleAuth()
   const [exportingToSheet, setExportingToSheet] = useState(false)
-  const [duplicateModal, setDuplicateModal] = useState<null | { duplicateOrderIds: string[], onAction: (action: 'skip' | 'overwrite' | 'cancel') => void }>(null)
+  const [duplicateModal, setDuplicateModal] = useState<null | { duplicateOrderIds: string[], onAction: (action: 'skip' | 'overwrite' | 'cancel') => void }>(null);
+  const invalidSelectedItems = () => {
+    const invalidItems = items.filter((item, i) => checkedIndices.has(i) && getRowStatus(item) !== 'ready');
+    if (invalidItems.length > 0) {
+      setExportError(
+        'Không thể xuất đơn hàng thiếu thông tin:\n' + invalidItems.map(item => `${item.orderId}`).join('\n')
+      );
+      return true;
+    }
+    return false;
+  }
 
   // Handles exporting selected orders to Google Sheet (separate from Excel export)
   const handleSaveToGoogleSheet = async () => {
+    setExportError(null);
+    setIsExporting(false);
+    if (!signedIn) {
+      signIn();
+      return;
+    }
     if (checkedCount === 0) {
       showNotification({
         title: 'Chưa chọn đơn hàng',
         message: 'Vui lòng chọn ít nhất một đơn hàng để xuất lên Google Sheet.',
         color: 'yellow',
-      })
+      });
+      return;
+    }
+
+    const violations = getPartialExportViolations(items, checkedIndices);
+    if (violations.length > 0) {
+      setExportError(
+        'Không thể xuất — đơn bị chia lẻ:\n' + violations.join('\n')
+      )
       return
     }
-    if (!signedIn) {
-      signIn()
-      return
-    }
+    
+    const invalidItems = invalidSelectedItems();
+    if (invalidItems) return;
     setExportingToSheet(true)
     try {
       await appendToSheet({
@@ -55,8 +82,10 @@ export function OrdersPage() {
             setDuplicateModal({
               duplicateOrderIds: result.duplicateOrderIds,
               onAction: (action) => {
-                setDuplicateModal(null)
-                resolveModal(action)
+                setDuplicateModal(null);
+                resolveModal(action);
+                setExportError(null);
+                setIsExporting(false);
               }
             })
           })
@@ -78,15 +107,17 @@ export function OrdersPage() {
     }
   }
 
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) importCsv(file)
     e.target.value = ''
   }
 
-  async function handleExport() {
-    setExportError(null)
-    const violations = getPartialExportViolations(items, checkedIndices)
+  const handleExport = async () => {
+    setExportError(null);
+    const violations = getPartialExportViolations(items, checkedIndices);
+    const invalidItems = invalidSelectedItems();
+    if (invalidItems) return;
     if (violations.length > 0) {
       setExportError(
         'Không thể xuất — đơn bị chia lẻ:\n' + violations.join('\n')
@@ -177,7 +208,7 @@ export function OrdersPage() {
           <Button
             data-testid="export-google-sheet"
             loading={exportingToSheet}
-            disabled={exportingToSheet}
+            disabled={checkedCount === 0}
             onClick={handleSaveToGoogleSheet}
             color="blue"
             style={{ marginLeft: 8 }}
@@ -193,13 +224,16 @@ export function OrdersPage() {
       {/* Duplicate orders modal for Google Sheets export */}
       <Modal
         opened={!!duplicateModal}
-        onClose={() => setDuplicateModal(null)}
+        onClose={() => {setDuplicateModal(null); setExportingToSheet(false)}}
         title="Đơn hàng trùng lặp"
         centered
       >
         <div>
           <div>
             {`Có ${duplicateModal?.duplicateOrderIds.length ?? 0} đơn hàng đã tồn tại trên Google Sheet.`}
+            {duplicateModal?.duplicateOrderIds.length && duplicateModal?.duplicateOrderIds.length > 0 && duplicateModal?.duplicateOrderIds.map((id) => (
+              <Text size="sm" c="dimmed">{`Đơn hàng: ${id}`}</Text>
+            ))}
           </div>
           <div style={{ marginTop: 16, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
             <Button onClick={() => duplicateModal?.onAction('skip')} color="yellow">Bỏ qua</Button>
@@ -228,4 +262,4 @@ export function OrdersPage() {
       />
     </Stack>
   )
-}
+};
