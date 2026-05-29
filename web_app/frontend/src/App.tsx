@@ -6,7 +6,7 @@ import { OrdersPage } from './features/orders/OrdersPage'
 import { DesignsPage } from './features/designs/DesignsPage'
 import { SettingsPage } from './features/settings/SettingsPage'
 import { GoogleAuthProvider, useGoogleAuth } from './features/orders/GoogleAuthContext'
-
+import { APP_VERSION } from './config'
 
 const NAV_ITEMS = [
   { path: '/orders',   label: 'Orders',   icon: IconPackage  },
@@ -24,7 +24,7 @@ function AppContent() {
     <AppShell navbar={{ width: 140, breakpoint: 'sm' }} padding="md" header={{ height: 52 }}>
       <AppShell.Header p="sm">
         <Group justify="space-between">
-          <Text fw={700} size="lg">🛍 TikTok → FlashPOD1</Text>
+          <Text fw={700} size="lg">🛍 TikTok → FlashPOD v{APP_VERSION}</Text>
           <Group gap="xs">
             <Badge color="orange" variant="light">UAT</Badge>
             {signedIn

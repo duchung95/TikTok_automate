@@ -1,6 +1,6 @@
 # TikTok Shop → FlashPOD Web App — Plan & Status
 
-_Last updated: 2026-05-28 (session 6)_
+_Last updated: 2026-05-29 (session 6)_
 
 ---
 
@@ -129,9 +129,10 @@ ready            → all above pass
 - [x] Variant mapping from static JSON
 - [x] Orders table — two-row layout, frozen sort order
 - [x] Partial order locking + guard
-- [x] `pnpm package` → zip on Desktop
+- [x] `pnpm package` → zip on Desktop (now includes start.command, permissions set)
 - [x] Fix `needsAttentionCount` to use `getRowStatus`
 - [x] Vietnamese attention banner
+- [x] Packaging script copies and sets permissions for start.command for easy user onboarding
 
 > - OAuth Client ID: `890161770494-...apps.googleusercontent.com` stored in `.env`
 > - Fulfillment Sheet ID stored in `.env` as `VITE_GOOGLE_SHEET_FULLFILL_ID`
@@ -139,8 +140,8 @@ ready            → all above pass
 - [x] `vite-env.d.ts` — typed `ImportMetaEnv`
 - [x] `googleSheetExport.ts` — token helpers, `checkDuplicates`, `appendToSheet`; columns = FlashShip 37 + `Order Date/Time`
 - [x] `App.tsx` — wrapped with `GoogleOAuthProvider`
-- [ ] `App.tsx` header — Google Sign In / Sign Out button + signed-in email display ← **NEXT**
-- [ ] `OrdersPage.tsx` — "Lưu vào Google Sheet" button; auto sign-in if needed; duplicate modal (Bỏ qua / Ghi đè / Huỷ)
+- [x] `App.tsx` header — Google Sign In / Sign Out button + signed-in email display ← **NEXT**
+- [x] `OrdersPage.tsx` — "Lưu vào Google Sheet" button; auto sign-in if needed; duplicate modal (Bỏ qua / Ghi đè / Huỷ)
 
 ### Phase 1c — Backend Foundation
 - [ ] Scaffold `backend/` — FastAPI + venv
@@ -190,3 +191,12 @@ ready            → all above pass
 - `GdriveImage` is now stateless for modal logic.
 - Login logic and scopes are consistent with `App.tsx`.
 - Fully Vietnamese UI for all auth prompts.
+
+### 2026-05-29: Packaging improvements for easy distribution
+- The build/package process now copies `start.command` into the `dist/` folder and sets executable permissions.
+- The zip archive (`flashpod_YYYY-MM-DD.zip`) now includes:
+  - `index.html` (single-file app)
+  - `flashship_mapping.json`
+  - `start.command` (double-click to launch a local server on port 3000 for Google OAuth compatibility)
+- Users can unzip and double-click `start.command` to run the app locally, or open `index.html` directly in their browser.
+- The packaging script (`scripts/package.mjs`) automates copying and permission setting for `start.command`.
