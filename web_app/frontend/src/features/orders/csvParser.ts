@@ -50,6 +50,10 @@ export const parseCsvRows = (
   colorFix: Record<string, string> = {},
   sizeFix: Record<string, string> = {},
 ): OrderItem[] => {
+  const parseDate = (dateString: string) => {
+    const [day, month, year] = dateString.split('/');
+    return new Date(`${year}-${month}-${day}`);
+  };
   return rows
     .filter(row => !shouldSkipRow(row))
     .map(row => {
@@ -76,9 +80,11 @@ export const parseCsvRows = (
         mockupBack:    '',
         statusNote:    variantId ? '' : 'Variant ID not found',
         isPartialLock: false,
+        productName:   (row['Product Name'] ?? '').trim()
       }
     })
-    .sort((a, b) => b.orderDate.localeCompare(a.orderDate))
+    .sort((a, b) => parseDate(b.orderDate).getTime() - parseDate(a.orderDate).getTime())
+    //.sort((a, b) => b.orderDate.localeCompare(a.orderDate))
 };
 
 export const markPartialOrders = (items: OrderItem[]): OrderItem[] => {

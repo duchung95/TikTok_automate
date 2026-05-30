@@ -355,6 +355,11 @@ export const OrdersTable = ({ items, checked, onToggleChecked, onUpdateItem }: O
       size: 140,
     },
     {
+      accessorKey: 'productName',
+      header: 'Product Name',
+      size: 180,
+    },
+    {
       accessorKey: 'variation',
       header: 'Product',
       size: 200,
@@ -374,11 +379,6 @@ export const OrdersTable = ({ items, checked, onToggleChecked, onUpdateItem }: O
       header: 'Qty',
       size: 50,
     },
-    // {
-    //   accessorKey: 'address1',
-    //   header: 'Address',
-    //   size: 180,
-    // },
     {
       id: 'status',
       header: 'Status',

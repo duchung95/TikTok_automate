@@ -34,11 +34,11 @@ const makeRow = (overrides: Record<string, string> = {}): Record<string, string>
 
 describe('parseOrderDate', () => {
   it('parses MM/DD/YYYY HH:MM:SS PM format', () => {
-    expect(parseOrderDate('05/20/2026 7:43:26 PM')).toBe('2026-05-20')
+    expect(parseOrderDate('05/20/2026 7:43:26 PM')).toBe('20/05/2026')
   })
 
   it('parses MM/DD/YYYY HH:MM:SS AM format', () => {
-    expect(parseOrderDate('01/03/2026 9:00:00 AM')).toBe('2026-01-03')
+    expect(parseOrderDate('01/03/2026 9:00:00 AM')).toBe('03/01/2026')
   })
 
   it('returns empty string for empty input', () => {
