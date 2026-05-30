@@ -6,9 +6,6 @@ const SHEET_ID = GOOGLE_SHEET_FULLFILL_ID
 const SHEET_NAME = 'Sheet1'
 const GSHEET_API = 'https://sheets.googleapis.com/v4/spreadsheets'
 
-// Extra columns appended after the 37 FlashShip columns
-const EXTRA_COLUMNS = ['Order Date'] as const
-
 export const GSHEET_COLUMNS = [
   'Order ID',
   'Order Date',

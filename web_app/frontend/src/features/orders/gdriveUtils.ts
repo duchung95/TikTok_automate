@@ -17,12 +17,12 @@ export const extractGdriveId = (url: string): string | null => {
   if (paramMatch) return paramMatch[1]
 
   return null
-}
+};
 
 /**
  * Returns a Google Drive thumbnail URL for a given file ID.
  * The thumbnail is publicly accessible without authentication for shared files.
  */
-export function gdriveThumbnailUrl(fileId: string, size = 200): string {
+export const gdriveThumbnailUrl = (fileId: string, size = 200): string => {
   return `https://drive.google.com/thumbnail?id=${fileId}&sz=w${size}`
-}
+};

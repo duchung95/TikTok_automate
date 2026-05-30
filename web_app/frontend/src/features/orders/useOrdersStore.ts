@@ -18,7 +18,7 @@ const LOCAL_STORAGE_KEY = "ordersPageState"
 
 type CheckedState = Record<string, boolean>  // row index → checked
 
-export function useOrdersStore() {
+export const useOrdersStore = () => {
   // Restore from localStorage if available
   const getInitialItems = (): OrderItem[] => {
     const saved = localStorage.getItem(LOCAL_STORAGE_KEY)
