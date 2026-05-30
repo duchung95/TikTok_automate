@@ -6,9 +6,6 @@ const SHEET_ID = GOOGLE_SHEET_FULLFILL_ID
 const SHEET_NAME = 'Sheet1'
 const GSHEET_API = 'https://sheets.googleapis.com/v4/spreadsheets'
 
-// Extra columns appended after the 37 FlashShip columns
-const EXTRA_COLUMNS = ['Order Date'] as const
-
 export const GSHEET_COLUMNS = [
   'Order ID',
   'Order Date',
@@ -55,25 +52,25 @@ export const GSHEET_COLUMNS = [
 
 const TOKEN_KEY = 'google_access_token'
 
-export function saveAccessToken(token: string): void {
+export const saveAccessToken = (token: string): void => {
   localStorage.setItem(TOKEN_KEY, token)
 }
 
-export function getAccessToken(): string | null {
+export const getAccessToken = (): string | null => {
   return localStorage.getItem(TOKEN_KEY)
 }
 
-export function clearAccessToken(): void {
+export const clearAccessToken = (): void => {
   localStorage.removeItem(TOKEN_KEY)
 }
 
-export function isSignedIn(): boolean {
+export const isSignedIn = (): boolean => {
   return !!getAccessToken()
 }
 
 // ── Sheet helpers ────────────────────────────────────────────────────────────
 
-async function fetchExistingOrderIds(token: string): Promise<{ ids: Set<string>; totalRows: number }> {
+const fetchExistingOrderIds = async (token: string): Promise<{ ids: Set<string>; totalRows: number }> => {
   // Read only the Order ID column (column A) to minimise data transfer
   const range = encodeURIComponent(`${SHEET_NAME}!A:A`)
   const res = await fetch(`${GSHEET_API}/${SHEET_ID}/values/${range}`, {
@@ -92,7 +89,7 @@ async function fetchExistingOrderIds(token: string): Promise<{ ids: Set<string>;
   return { ids, totalRows: rows.length }
 }
 
-function buildGsheetRow(item: OrderItem): string[] {
+const buildGsheetRow = (item: OrderItem): string[] => {
   return [
     `HD - ${item.orderId}`,
     item.orderDate ?? '',
@@ -144,7 +141,7 @@ export interface DuplicateCheckResult {
   duplicateItems: OrderItem[]
 }
 
-export function checkDuplicates(items: OrderItem[], existingIds: Set<string>): DuplicateCheckResult {
+export const checkDuplicates = (items: OrderItem[], existingIds: Set<string>): DuplicateCheckResult => {
   const duplicateItems = items.filter(item => existingIds.has('HD - ' + item.orderId))
   const newItems = items.filter(item => !existingIds.has('HD - ' + item.orderId))
   const duplicateOrderIds = [...new Set(duplicateItems.map(item => item.orderId))]
@@ -153,7 +150,7 @@ export function checkDuplicates(items: OrderItem[], existingIds: Set<string>): D
 
 // ── Append rows ──────────────────────────────────────────────────────────────
 
-async function appendRows(token: string, rows: string[][]): Promise<void> {
+const appendRows = async (token: string, rows: string[][]): Promise<void> => {
   const range = encodeURIComponent(`${SHEET_NAME}!A:A`);
   const res = await fetch(
     `${GSHEET_API}/${SHEET_ID}/values/${range}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
@@ -176,7 +173,7 @@ async function appendRows(token: string, rows: string[][]): Promise<void> {
 
 }
 
-async function overwriteRows(token: string, items: OrderItem[], existingIds: Set<string>, totalRows: number): Promise<void> {
+const overwriteRows = async (token: string, items: OrderItem[], existingIds: Set<string>, totalRows: number): Promise<void> => {
   // For overwrite: append is simplest — delete existing matching rows first would require batchUpdate.
   // For now: we re-append duplicates as new rows (simpler, safe).
   // TODO: implement true overwrite via batchUpdate if needed.
@@ -194,11 +191,11 @@ export interface AppendToSheetOptions {
   onDuplicatesFound: (result: DuplicateCheckResult) => Promise<DuplicateResolution>
 }
 
-export async function appendToSheet({
+export const appendToSheet = async ({
   items,
   checkedIndices,
   onDuplicatesFound,
-}: AppendToSheetOptions): Promise<{ appended: number }> {
+}: AppendToSheetOptions): Promise<{ appended: number }> => {
   const token = getAccessToken()
   if (!token) throw new Error('Chưa đăng nhập Google. Vui lòng đăng nhập trong trang Cài đặt.')
 

@@ -25,7 +25,7 @@ interface OrdersTableProps {
 
 type RowStatus = 'locked' | 'partial' | 'needs-link-label' | 'needs-design' | 'needs-mockup' | 'ready'
 
-export function getRowStatus(item: OrderItem): RowStatus {
+export const getRowStatus = (item: OrderItem): RowStatus => {
   if (!item.variantId && !item.isPartialLock) return 'locked'
   if (item.isPartialLock) return 'partial'
   if (!item.linkLabel.trim()) return 'needs-link-label'
@@ -65,7 +65,7 @@ const ORDER_PALETTE = [
 const LOCKED_BG  = 'var(--mantine-color-red-1)'
 const PARTIAL_BG = 'var(--mantine-color-orange-1)'
 
-function buildOrderColorMap(items: OrderItem[]): Map<string, string> {
+const buildOrderColorMap = (items: OrderItem[]): Map<string, string> => {
   const map = new Map<string, string>()
   for (const item of items) {
     if (!map.has(item.orderId)) {
@@ -75,7 +75,7 @@ function buildOrderColorMap(items: OrderItem[]): Map<string, string> {
   return map
 }
 
-function getRowBg(item: OrderItem, orderColorMap: Map<string, string>): string {
+const getRowBg = (item: OrderItem, orderColorMap: Map<string, string>): string => {
   if (!item.variantId && !item.isPartialLock) return LOCKED_BG
   if (item.isPartialLock) return PARTIAL_BG
   return orderColorMap.get(item.orderId) ?? '#ffffff'
@@ -90,7 +90,7 @@ interface UrlFieldProps {
   showPreview?: boolean
 }
 
-function UrlField({ label, value, onChange, showPreview = true }: UrlFieldProps) {
+const UrlField = ({ label, value, onChange, showPreview = true }: UrlFieldProps) => {
   const fileId = showPreview ? extractGdriveId(value) : null
   const thumbUrl = fileId ? gdriveThumbnailUrl(fileId, 400) : null
 
@@ -139,10 +139,10 @@ const RETRY_DELAY_MS = 800
  * `key={thumbUrl-attempt}` forces a fresh <img> element on every retry,
  * clearing any cached failure state in the browser.
  */
-function GdriveImage({ href, fileId, publicThumbnailUrl, label, ignore, onShowModal }: {
+const GdriveImage = ({ href, fileId, publicThumbnailUrl, label, ignore, onShowModal }: {
   href: string; fileId: string; publicThumbnailUrl: string; label: string;
   ignore: boolean; onShowModal: () => void;
-}) {
+}) => {
   const { signedIn, accessToken } = useGoogleAuth()
   const [imgUrl, setImgUrl] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -231,7 +231,7 @@ function GdriveImage({ href, fileId, publicThumbnailUrl, label, ignore, onShowMo
   )
 }
 
-function UrlQuad({ items }: { items: UrlQuadItem[] }) {
+const UrlQuad = ({ items }: { items: UrlQuadItem[] }) => {
   const { signedIn, signIn } = useGoogleAuth()
   const [modalState, setModalState] = useState<Record<string, { show: boolean; ignore: boolean }>>({})
 
@@ -302,7 +302,7 @@ function UrlQuad({ items }: { items: UrlQuadItem[] }) {
   )
 }
 
-export function OrdersTable({ items, checked, onToggleChecked, onUpdateItem }: OrdersTableProps) {
+export const OrdersTable = ({ items, checked, onToggleChecked, onUpdateItem }: OrdersTableProps) => {
   const [sorting, setSorting] = useState<SortingState>([])
 
   // Frozen sort order — only recomputed when a new CSV is imported (items.length changes).
@@ -355,6 +355,11 @@ export function OrdersTable({ items, checked, onToggleChecked, onUpdateItem }: O
       size: 140,
     },
     {
+      accessorKey: 'productName',
+      header: 'Product Name',
+      size: 180,
+    },
+    {
       accessorKey: 'variation',
       header: 'Product',
       size: 200,
@@ -374,11 +379,6 @@ export function OrdersTable({ items, checked, onToggleChecked, onUpdateItem }: O
       header: 'Qty',
       size: 50,
     },
-    // {
-    //   accessorKey: 'address1',
-    //   header: 'Address',
-    //   size: 180,
-    // },
     {
       id: 'status',
       header: 'Status',

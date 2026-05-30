@@ -78,3 +78,6 @@
 - **Fragments:** Use `<>...</>` or `React.Fragment` to avoid unnecessary DOM wrapper elements.
 - **Custom Hooks:** Extract reusable stateful logic into **custom hooks** (e.g., `useDebounce`, `useLocalStorage`).
 - **UI Components:** Use [Mantine](https://mantine.dev/) for building UI components to ensure consistency and accessibility. **Avoid native HTML elements** (`<div>`, `<button>`, `<input>`, `<table>`, etc.) — always prefer the Mantine equivalent (`Box`, `Button`, `TextInput`, `Table`, etc.).
+- **Always use arrow function when create components or hooks**
+- **Always use TypeScript for type definitions**
+- **Always add a comment explaining the purpose of the component or hook or function**
