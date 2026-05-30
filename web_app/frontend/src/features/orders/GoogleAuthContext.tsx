@@ -27,7 +27,7 @@ function getStoredToken() {
   return { token, expiresAt: Number(expiresAt) };
 }
 
-export function GoogleAuthProvider({ children }: { children: ReactNode }) {
+export const GoogleAuthProvider = ({ children }: { children: ReactNode }) => {
   const [accessToken, setAccessToken] = useState<string | null>(() => {
     const stored = getStoredToken();
     return stored ? stored.token : null;
@@ -105,7 +105,7 @@ export function GoogleAuthProvider({ children }: { children: ReactNode }) {
   );
 }
 
-export function useGoogleAuth() {
+export const useGoogleAuth = () => {
   const ctx = useContext(GoogleAuthContext);
   if (!ctx) throw new Error('useGoogleAuth must be used within a GoogleAuthProvider');
   return ctx;

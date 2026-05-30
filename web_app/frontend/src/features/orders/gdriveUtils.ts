@@ -5,7 +5,7 @@
  *   https://drive.google.com/open?id={ID}
  *   https://drive.google.com/uc?id={ID}
  */
-export function extractGdriveId(url: string): string | null {
+export const extractGdriveId = (url: string): string | null => {
   if (!url) return null
 
   // Format: /d/{ID}/

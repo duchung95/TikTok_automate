@@ -6,15 +6,16 @@ const CANCELLED_STATUSES = new Set([
 const VOUCHER_PREFIX = 'Spend $'
 const SHIP_STATUS = 'To ship'
 
-export function parseOrderDate(dateStr: string): string {
+export const parseOrderDate = (dateStr: string): string => {
   // Input: "05/20/2026 7:43:26 PM" → Output: "2026-05-20"
   const match = dateStr.trim().match(/^(\d{2})\/(\d{2})\/(\d{4})/)
   if (!match) return ''
   const [, month, day, year] = match
-  return `${year}-${month}-${day}`
-}
+  // return `${year}-${month}-${day}`
+  return `${day}/${month}/${year}`;
+};
 
-export function shouldSkipRow(row: Record<string, string>): boolean {
+export const shouldSkipRow = (row: Record<string, string>): boolean => {
   const status = (row['Order Status'] ?? '').trim()
   const variation = (row['Variation'] ?? '').trim()
   if (CANCELLED_STATUSES.has(status)) return true
@@ -23,12 +24,12 @@ export function shouldSkipRow(row: Record<string, string>): boolean {
   return false
 }
 
-export function mapVariant(
+export const mapVariant = (
   variation: string,
   mapping: Record<string, string>,
   colorFix: Record<string, string> = {},
   sizeFix: Record<string, string> = {},
-): { fixedVariation: string; variantId: string } {
+): { fixedVariation: string; variantId: string } => {
   const normalised = variation.trim().replace(/\s+/g, ' ')
   const parts = normalised.split(',').map(p => p.trim())
   let fixed: string
@@ -43,12 +44,12 @@ export function mapVariant(
   return { fixedVariation: fixed, variantId }
 }
 
-export function parseCsvRows(
+export const parseCsvRows = (
   rows: Record<string, string>[],
   mapping: Record<string, string>,
   colorFix: Record<string, string> = {},
   sizeFix: Record<string, string> = {},
-): OrderItem[] {
+): OrderItem[] => {
   return rows
     .filter(row => !shouldSkipRow(row))
     .map(row => {
@@ -78,9 +79,9 @@ export function parseCsvRows(
       }
     })
     .sort((a, b) => b.orderDate.localeCompare(a.orderDate))
-}
+};
 
-export function markPartialOrders(items: OrderItem[]): OrderItem[] {
+export const markPartialOrders = (items: OrderItem[]): OrderItem[] => {
   const orderGroups = new Map<string, OrderItem[]>()
   for (const item of items) {
     const group = orderGroups.get(item.orderId) ?? []
@@ -93,8 +94,8 @@ export function markPartialOrders(items: OrderItem[]): OrderItem[] {
     const hasUnlocked = group.some(i => i.variantId)
     const isPartialLock = group.length > 1 && hasLocked && hasUnlocked && !item.variantId
     return { ...item, isPartialLock }
-  })
-}
+  });
+};
 
 /**
  * A row is "ready" (exportable / submittable) when:
@@ -103,10 +104,10 @@ export function markPartialOrders(items: OrderItem[]): OrderItem[] {
  *   - at least one of designFront or designBack is non-empty
  *   - at least one of mockupFront or mockupBack is non-empty
  */
-export function isRowReady(item: OrderItem): boolean {
+export const isRowReady = (item: OrderItem): boolean => {
   if (!item.variantId || item.isPartialLock) return false
   if (!item.linkLabel.trim()) return false
   if (!item.designFront.trim() && !item.designBack.trim()) return false
   if (!item.mockupFront.trim() && !item.mockupBack.trim()) return false
   return true
-}
+};

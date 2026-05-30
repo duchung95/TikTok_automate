@@ -100,10 +100,10 @@ export function getPartialExportViolations(
  * Builds and downloads the FlashShip XLSX import file from the given items.
  * Only items whose index is in `checkedIndices` are included.
  */
-export async function exportToXlsx(
+export const exportToXlsx = async (
   items: OrderItem[],
   checkedIndices: Set<number>
-): Promise<void> {
+): Promise<void> => {
   const workbook = new ExcelJS.Workbook()
   const sheet = workbook.addWorksheet('FlashShip')
 
@@ -135,4 +135,4 @@ export async function exportToXlsx(
   a.click()
   document.body.removeChild(a)
   URL.revokeObjectURL(url)
-}
+};
