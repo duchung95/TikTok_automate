@@ -200,3 +200,14 @@ ready            → all above pass
   - `start.command` (double-click to launch a local server on port 3000 for Google OAuth compatibility)
 - Users can unzip and double-click `start.command` to run the app locally, or open `index.html` directly in their browser.
 - The packaging script (`scripts/package.mjs`) automates copying and permission setting for `start.command`.
+
+### Environment Variable Management
+
+- Vite loads environment variables from `.env`, `.env.local`, `.env.[mode]`, and `.env.[mode].local` in the frontend root.
+- For local development, use `.env.development` or `.env.local` to override shared settings.
+- For production, use `.env.production` or set environment variables in your deployment environment.
+- Never commit sensitive values to version control. Use `.env.local` or `.env.[mode].local` for secrets.
+
+**Example workflow:**
+- Copy `.env.development.example` to `.env.development` and fill in your local values.
+- Run `pnpm dev` to start the frontend with your local environment.
