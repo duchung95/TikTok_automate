@@ -21,4 +21,29 @@ VITE_API_URL=http://localhost:3000/api
 
 See `.env.development.example` for a template.
 
+## Deployment (GitHub Pages)
+
+This project can be deployed to GitHub Pages from the `web_app/frontend` directory.
+
+Quick steps:
+
+1. Install the deploy helper (already added):
+
+```bash
+pnpm install --save-dev gh-pages
+```
+
+2. Build and deploy:
+
+```bash
+pnpm run build
+pnpm run deploy.  ## this will get deploy to our Github page
+```
+
+The `deploy` script pushes the built `dist` to the `gh-pages` branch.
+
+Notes:
+- Ensure `homepage` (if used) in `package.json` or the `vite` base is configured for your GitHub Pages URL.
+- The `start.command` remains useful for local testing and OAuth during development.
+
 // ...existing content...

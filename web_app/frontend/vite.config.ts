@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react'
 import { viteSingleFile } from 'vite-plugin-singlefile'
 
 export default defineConfig({
-  base: './',
+  //base: './',
   plugins: [react(), viteSingleFile()],
   build: {
     chunkSizeWarningLimit: 10_000,
@@ -12,4 +12,5 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
   },
+  base: '/Tiktok_automate/'
 })

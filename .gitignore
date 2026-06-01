@@ -31,7 +31,7 @@ web_app/frontend/.vite/
 # ── Environment / secrets ────────────────────────────────────────────────────
 .env
 .env.development
-web_app/.env
+web_app/frontend/.env
 
 # ── TikTok order exports (contain customer PII) ──────────────────────────────
 All order-*.csv
