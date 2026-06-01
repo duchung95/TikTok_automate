@@ -37,7 +37,7 @@ pnpm install --save-dev gh-pages
 
 ```bash
 pnpm run build
-pnpm run deploy
+pnpm run deploy.  ## this will get deploy to our Github page
 ```
 
 The `deploy` script pushes the built `dist` to the `gh-pages` branch.
