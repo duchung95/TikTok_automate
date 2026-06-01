@@ -167,6 +167,14 @@ ready            → all above pass
 - [ ] macOS Keychain (`keyring`)
 - [ ] PyInstaller / pywebview → single `.app`
 
+### Deployment
+
+- GitHub Pages deployment has been added for the frontend. Use the `gh-pages` helper to push the built app to the `gh-pages` branch.
+- From `web_app/frontend`:
+  - `pnpm run build` — produce production build
+  - `pnpm run deploy` — deploy to `gh-pages`
+
+
 ---
 
 ## Known Issues / Notes
