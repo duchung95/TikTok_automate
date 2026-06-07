@@ -27,6 +27,8 @@ import {
   checkDuplicates,
   GSHEET_COLUMNS,
   appendToSheet,
+  buildDesignRow,
+  saveToDesignSheet,
   type DuplicateResolution,
 } from './googleSheetExport'
 import { FLASHSHIP_COLUMNS } from './exportXlsx'
@@ -60,6 +62,7 @@ const makeItem = (overrides: Partial<OrderItem> = {}): OrderItem => ({
   mockupBack: '',
   statusNote: '',
   isPartialLock: false,
+  productName: 'T-Shirt Black',
   ...overrides,
 })
 
@@ -430,5 +433,88 @@ describe('appendToSheet', () => {
     await expect(
       appendToSheet({ items: [makeItem()], checkedIndices: new Set([0]), onDuplicatesFound: vi.fn() })
     ).rejects.toThrow('The caller does not have permission')
+  })
+})
+
+// ── buildDesignRow ────────────────────────────────────────────────────────────
+
+describe('buildDesignRow', () => {
+  it('maps productName, designFront, and mockupFront to correct columns', () => {
+    const row = buildDesignRow(makeItem({ productName: 'T-Shirt Black' }))
+    expect(row[0]).toBe('T-Shirt Black')                                  // A: Design Names
+    expect(row[1]).toBe('https://drive.google.com/design-front')          // B: Design Image Link
+    expect(row[2]).toBe('')                                               // C: empty (ARRAYFORMULA)
+    expect(row[3]).toBe('https://drive.google.com/mockup-front')          // D: Mockup Image Link
+    expect(row[4]).toBe('')                                               // E: empty (ARRAYFORMULA)
+  })
+
+  it('falls back to designBack when designFront is empty', () => {
+    const row = buildDesignRow(makeItem({ designFront: '', designBack: 'https://back.url' }))
+    expect(row[1]).toBe('https://back.url')
+  })
+
+  it('falls back to mockupBack when mockupFront is empty', () => {
+    const row = buildDesignRow(makeItem({ mockupFront: '', mockupBack: 'https://mockup-back.url' }))
+    expect(row[3]).toBe('https://mockup-back.url')
+  })
+})
+
+// ── saveToDesignSheet ─────────────────────────────────────────────────────────
+
+describe('saveToDesignSheet', () => {
+  const DESIGN_SHEET_ID = import.meta.env.VITE_GOOGLE_SHEET_DESIGN_ID
+  const DESIGN_API = `https://sheets.googleapis.com/v4/spreadsheets/${DESIGN_SHEET_ID}`
+
+  beforeEach(() => { saveAccessToken(MOCK_TOKEN) })
+
+  it('returns { saved: 0 } when design already exists in sheet', async () => {
+    server.use(
+      http.get(`${DESIGN_API}/values/:range`, () =>
+        HttpResponse.json({ values: [['Design Names'], ['T-Shirt Black']] })
+      )
+    )
+    const result = await saveToDesignSheet([makeItem({ productName: 'T-Shirt Black' })], MOCK_TOKEN)
+    expect(result.saved).toBe(0)
+  })
+
+  it('saves new designs and deduplicates within the batch', async () => {
+    let appendedRows: string[][] = []
+    server.use(
+      http.get(`${DESIGN_API}/values/:range`, () =>
+        HttpResponse.json({ values: [['Design Names']] })
+      ),
+      http.post(
+        (req) => new URL(req.request.url).pathname.includes(DESIGN_SHEET_ID),
+        async ({ request }) => {
+          const body = await request.json() as { values: string[][] }
+          appendedRows = body.values
+          return HttpResponse.json({})
+        }
+      )
+    )
+    const items = [
+      makeItem({ orderId: 'ORD-001', productName: 'Design A' }),
+      makeItem({ orderId: 'ORD-002', productName: 'Design B' }),
+      makeItem({ orderId: 'ORD-003', productName: 'Design A' }), // duplicate in batch
+    ]
+    const result = await saveToDesignSheet(items, MOCK_TOKEN)
+    expect(result.saved).toBe(2)
+    expect(appendedRows).toHaveLength(2)
+    expect(appendedRows[0][0]).toBe('Design A')
+    expect(appendedRows[1][0]).toBe('Design B')
+  })
+
+  it('skips items with no productName', async () => {
+    server.use(http.get(`${DESIGN_API}/values/:range`, () => HttpResponse.json({ values: [] })))
+    const result = await saveToDesignSheet([makeItem({ productName: '' })], MOCK_TOKEN)
+    expect(result.saved).toBe(0)
+  })
+
+  it('skips items with no design URL', async () => {
+    server.use(http.get(`${DESIGN_API}/values/:range`, () => HttpResponse.json({ values: [] })))
+    const result = await saveToDesignSheet(
+      [makeItem({ designFront: '', designBack: '' })], MOCK_TOKEN
+    )
+    expect(result.saved).toBe(0)
   })
 })

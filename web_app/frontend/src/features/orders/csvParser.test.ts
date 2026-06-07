@@ -303,6 +303,7 @@ const makeItem = (overrides: Partial<OrderItem> = {}): OrderItem => ({
   mockupBack:    '',
   statusNote:    '',
   isPartialLock: false,
+  productName:   'T-Shirt',
   ...overrides,
 })
 
