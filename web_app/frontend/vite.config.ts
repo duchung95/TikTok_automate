@@ -11,6 +11,9 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
+    env: {
+      VITE_GOOGLE_SHEET_DESIGN_ID: 'test-design-sheet-id',
+    },
   },
   base: '/Tiktok_automate/'
 })

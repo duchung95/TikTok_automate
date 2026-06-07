@@ -24,6 +24,7 @@ const mockOrderItem: OrderItem = {
   mockupBack: "",
   statusNote: "",
   isPartialLock: false,
+  productName:    'T-Shirt',
 };
 
 describe("useOrdersStore (React hook version)", () => {

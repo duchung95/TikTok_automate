@@ -19,4 +19,5 @@ export interface OrderItem {
   mockupBack: string
   statusNote: string
   isPartialLock: boolean
+  productName: string
 }

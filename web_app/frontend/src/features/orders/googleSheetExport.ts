@@ -1,9 +1,11 @@
 import type { OrderItem } from './types'
 import { buildFlashshipRow, FLASHSHIP_COLUMNS } from './exportXlsx'
-import { GOOGLE_SHEET_FULLFILL_ID } from '../../config'
+import { GOOGLE_SHEET_FULLFILL_ID, GOOGLE_SHEET_DESIGN_ID, GOOGLE_SHEET_DESIGN_SHEET_NAME } from '../../config'
 
 const SHEET_ID = GOOGLE_SHEET_FULLFILL_ID
 const SHEET_NAME = 'Sheet1'
+const DESIGN_SHEET_ID = GOOGLE_SHEET_DESIGN_ID
+const DESIGN_SHEET_NAME = GOOGLE_SHEET_DESIGN_SHEET_NAME
 const GSHEET_API = 'https://sheets.googleapis.com/v4/spreadsheets'
 
 export const GSHEET_COLUMNS = [
@@ -93,6 +95,7 @@ const buildGsheetRow = (item: OrderItem): string[] => {
   return [
     `HD - ${item.orderId}`,
     item.orderDate ?? '',
+    item.productName ?? '',
     '', // Shipping method
     item.customer ?? '',
     '', // Email
@@ -181,6 +184,72 @@ const overwriteRows = async (token: string, items: OrderItem[], existingIds: Set
   await appendRows(token, rows);
 }
 
+// ── Design sheet helpers ─────────────────────────────────────────────────────
+
+/** Reads existing product names (col A) from the design sheet to avoid duplicates */
+const fetchExistingDesignNames = async (token: string): Promise<Set<string>> => {
+  if (!DESIGN_SHEET_ID) return new Set()
+  const range = encodeURIComponent(`${DESIGN_SHEET_NAME}!A:A`)
+  const res = await fetch(`${GSHEET_API}/${DESIGN_SHEET_ID}/values/${range}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) return new Set()
+  const data = await res.json()
+  const rows: string[][] = data.values ?? []
+  // Skip header row
+  return new Set(rows.slice(1).map(r => r[0] ?? '').filter(Boolean))
+}
+
+/**
+ * Builds a 5-value row for the design sheet:
+ * [productName, designFront, '', mockupFront, '']
+ * Columns C and E are left empty — the ARRAYFORMULA in the sheet handles image display.
+ */
+export const buildDesignRow = (item: OrderItem): string[] => [
+  item.productName,
+  item.designFront || item.designBack,
+  '',
+  item.mockupFront || item.mockupBack,
+  '',
+]
+
+/**
+ * Saves unique new designs to the design sheet.
+ * Deduplicates by productName against existing sheet entries and within the current batch.
+ * Returns { saved: 0 } silently if DESIGN_SHEET_ID is not configured.
+ */
+export const saveToDesignSheet = async (items: OrderItem[], token: string): Promise<{ saved: number }> => {
+  if (!DESIGN_SHEET_ID) return { saved: 0 }
+
+  const existingNames = await fetchExistingDesignNames(token)
+  const seen = new Set<string>()
+  const newDesigns = items.filter(item => {
+    if (!item.productName) return false
+    if (!item.designFront && !item.designBack) return false
+    if (existingNames.has(item.productName)) return false
+    if (seen.has(item.productName)) return false
+    seen.add(item.productName)
+    return true
+  })
+
+  if (newDesigns.length === 0) return { saved: 0 }
+
+  const range = encodeURIComponent(`${DESIGN_SHEET_NAME}!A:A`)
+  const res = await fetch(
+    `${GSHEET_API}/${DESIGN_SHEET_ID}/values/${range}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
+    {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ values: newDesigns.map(buildDesignRow) }),
+    }
+  )
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err?.error?.message ?? `Design sheet API error: ${res.status}`)
+  }
+  return { saved: newDesigns.length }
+}
+
 // ── Main export function ─────────────────────────────────────────────────────
 
 export type DuplicateResolution = 'skip' | 'overwrite' | 'cancel'
@@ -226,6 +295,13 @@ export const appendToSheet = async ({
   // 3. Append rows
   const rows = itemsToAppend.map(buildGsheetRow)
   await appendRows(token, rows)
+
+  // 4. Save unique designs to design sheet (non-blocking — failure does not affect fulfillment save)
+  try {
+    await saveToDesignSheet(itemsToAppend, token)
+  } catch (e) {
+    console.warn('Design sheet save failed (non-critical):', e)
+  }
 
   return { appended: itemsToAppend.length }
 }
