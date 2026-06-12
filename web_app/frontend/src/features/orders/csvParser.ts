@@ -5,6 +5,7 @@ const CANCELLED_STATUSES = new Set([
 ])
 const VOUCHER_PREFIX = 'Spend $'
 const SHIP_STATUS = 'To ship'
+const VOUCHER_PREFIX_PRODUCT_NAME = 'Voucher'
 
 export const parseOrderDate = (dateStr: string): string => {
   // Input: "05/20/2026 7:43:26 PM" → Output: "2026-05-20"
@@ -18,9 +19,11 @@ export const parseOrderDate = (dateStr: string): string => {
 export const shouldSkipRow = (row: Record<string, string>): boolean => {
   const status = (row['Order Status'] ?? '').trim()
   const variation = (row['Variation'] ?? '').trim()
+  const productName = (row['Product Name'] ?? '').trim()
   if (CANCELLED_STATUSES.has(status)) return true
   if (variation.startsWith(VOUCHER_PREFIX)) return true
   if (status !== SHIP_STATUS) return true
+  if (productName.startsWith(VOUCHER_PREFIX_PRODUCT_NAME)) return true
   return false
 }
 
