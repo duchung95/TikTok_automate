@@ -1,4 +1,4 @@
-import type { OrderItem } from './types'
+import type { OrderItem } from './types';
 
 const CANCELLED_STATUSES = new Set([
   'Cancelled', 'Seller Cancel', 'Cancel Request', 'Unpaid',
@@ -52,6 +52,7 @@ export const parseCsvRows = (
   mapping: Record<string, string>,
   colorFix: Record<string, string> = {},
   sizeFix: Record<string, string> = {},
+  imageMapping: Record<string, string> = {},
 ): OrderItem[] => {
   const parseDate = (dateString: string) => {
     const [day, month, year] = dateString.split('/');
@@ -61,7 +62,14 @@ export const parseCsvRows = (
     .filter(row => !shouldSkipRow(row))
     .map(row => {
       const variation = (row['Variation'] ?? '').trim()
-      const { fixedVariation, variantId } = mapVariant(variation, mapping, colorFix, sizeFix)
+      const { fixedVariation, variantId } = mapVariant(variation, mapping, colorFix, sizeFix);
+      const productName = (row['Product Name'] ?? '').trim()
+        .replace('- HnhDessign Clothing', '')
+        .replace(' - HnhDessign Clothing', '')
+        .replace('- Hnh Design Apperal', '')
+        .replace(' - Hnh Design Apperal', '')
+        .replace(/,$/, "")
+        .trimEnd();
       return {
         orderId:       (row['Order ID'] ?? '').trim(),
         orderDate:     parseOrderDate(row['Created Time'] ?? ''),
@@ -83,7 +91,8 @@ export const parseCsvRows = (
         mockupBack:    '',
         statusNote:    variantId ? '' : 'Variant ID not found',
         isPartialLock: false,
-        productName:   (row['Product Name'] ?? '').trim()
+        productName:   (row['Product Name'] ?? '').trim(),
+        mainImageUrl:      imageMapping[productName] ?? ''
       }
     })
     .sort((a, b) => parseDate(b.orderDate).getTime() - parseDate(a.orderDate).getTime())
