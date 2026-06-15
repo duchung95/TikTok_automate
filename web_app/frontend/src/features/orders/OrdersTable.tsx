@@ -302,6 +302,37 @@ const UrlQuad = ({ items }: { items: UrlQuadItem[] }) => {
   )
 }
 
+/** Thumbnail that opens a full-size modal on click. */
+const MainImagePreview = ({ src, alt }: { src: string; alt: string }) => {
+  const [opened, setOpened] = useState(false)
+  return (
+    <>
+      <Tooltip label="Nhấn để xem lớn" position="top">
+        <img
+          src={src}
+          alt={alt}
+          style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 4, cursor: 'pointer' }}
+          onClick={() => setOpened(true)}
+        />
+      </Tooltip>
+      <Modal
+        opened={opened}
+        onClose={() => setOpened(false)}
+        title={alt}
+        centered
+        size="65vw"
+        styles={{ body: { height: '65vh', display: 'flex', alignItems: 'center', justifyContent: 'center' } }}
+      >
+        <img
+          src={src}
+          alt={alt}
+          style={{ maxWidth: '100%', maxHeight: '100%', borderRadius: 8, objectFit: 'contain' }}
+        />
+      </Modal>
+    </>
+  )
+}
+
 export const OrdersTable = ({ items, checked, onToggleChecked, onUpdateItem }: OrdersTableProps) => {
   const [sorting, setSorting] = useState<SortingState>([])
 
@@ -452,6 +483,14 @@ export const OrdersTable = ({ items, checked, onToggleChecked, onUpdateItem }: O
                     style={{ background: bg, borderBottom: '2px solid var(--mantine-color-gray-3)' }}
                   >
                     <td />
+                    <td>
+                      { row.original.mainImageUrl ? (
+                        <MainImagePreview src={row.original.mainImageUrl} alt={row.original.productName} />
+                      ) : (
+                        <span>No Image Available</span>
+                      )}
+                    </td>
+
                     <td colSpan={8} style={{ padding: '4px 8px 10px' }}>
                       <Stack gap={8}>
                         {/* Link Label */}

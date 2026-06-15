@@ -30,6 +30,7 @@ web_app/frontend/.vite/
 web_app/frontend/scripts/flaship_order.json
 web_app/frontend/scripts/*.csv
 web_app/frontend/scripts/*.xlsx
+web_app/frontend/scripts/listing_images.json
 
 # ── Environment / secrets ────────────────────────────────────────────────────
 .env

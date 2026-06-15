@@ -20,4 +20,5 @@ export interface OrderItem {
   statusNote: string
   isPartialLock: boolean
   productName: string
+  mainImageUrl?: string
 }
