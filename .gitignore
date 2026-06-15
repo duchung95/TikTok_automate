@@ -27,6 +27,9 @@ dist/
 web_app/frontend/node_modules/
 web_app/frontend/dist/
 web_app/frontend/.vite/
+web_app/frontend/scripts/flaship_order.json
+web_app/frontend/scripts/*.csv
+web_app/frontend/scripts/*.xlsx
 
 # ── Environment / secrets ────────────────────────────────────────────────────
 .env
