@@ -17,14 +17,24 @@ def extract_listing_images():
         product_name = row['Product Name']
         product_name = product_name.replace(' - Hnh Design Apperal', '')
         product_name = product_name.replace('- Hnh Design Apperal', '')
+        product_name = product_name.replace('-Hnh Design Apperal', '')
         product_name = product_name.replace(' - HnhDesign Clothing', '')
         product_name = product_name.replace('- HnhDesign Clothing', '')
+        product_name = product_name.replace('-HnhDesign Clothing', '')
+        product_name = product_name.replace('- HnhDessign Clothing', '')
+        product_name = product_name.replace(' - HnhDessign Clothing', '')
+        product_name = product_name.replace('-HnhDessign Clothing', '')
         product_name = product_name.rstrip(' ')
         product_name = product_name.rstrip(',')
-        print(product_name)
+        
         main_image_url = row['Image1']
         if pd.notna(main_image_url):
-            json_result[product_name] = main_image_url
+            if product_name in json_result:
+                
+                print(f"duplicate found {product_name}")
+                json_result[product_name].append(main_image_url)
+            else:
+                json_result[product_name] = [main_image_url]
 
     with open('listing_images.json', 'w') as json_file:
         json.dump(json_result, json_file, indent=4)

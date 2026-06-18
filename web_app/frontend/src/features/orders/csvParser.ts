@@ -52,7 +52,7 @@ export const parseCsvRows = (
   mapping: Record<string, string>,
   colorFix: Record<string, string> = {},
   sizeFix: Record<string, string> = {},
-  imageMapping: Record<string, string> = {},
+  imageMapping: Record<string, string[]> = {},
 ): OrderItem[] => {
   const parseDate = (dateString: string) => {
     const [day, month, year] = dateString.split('/');
@@ -70,6 +70,7 @@ export const parseCsvRows = (
         .replace(' - Hnh Design Apperal', '')
         .replace(/,$/, "")
         .trimEnd();
+      const mainImage = imageMapping[productName]
       return {
         orderId:       (row['Order ID'] ?? '').trim(),
         orderDate:     parseOrderDate(row['Created Time'] ?? ''),
