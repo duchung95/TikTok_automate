@@ -302,32 +302,53 @@ const UrlQuad = ({ items }: { items: UrlQuadItem[] }) => {
   )
 }
 
-/** Thumbnail that opens a full-size modal on click. */
-const MainImagePreview = ({ src, alt }: { src: string; alt: string }) => {
+/** Shows up to 2 thumbnails inline. If more than 2, adds a "+N more" button. Clicking any opens the full gallery modal. */
+const MainImagePreview = ({ images, alt }: { images: string[]; alt: string }) => {
   const [opened, setOpened] = useState(false)
+
+  if (!images || images.length === 0)
+    return <Text size="xs" c="dimmed">No image</Text>
+
+  const visibleImages = images.slice(0, 2)
+  const remainingCount = images.length - 2
+
   return (
     <>
-      <Tooltip label="Nhấn để xem lớn" position="top">
-        <img
-          src={src}
-          alt={alt}
-          style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 4, cursor: 'pointer' }}
-          onClick={() => setOpened(true)}
-        />
-      </Tooltip>
+      <Group gap={4} align="center" wrap="nowrap">
+        {visibleImages.map((src, i) => (
+          <Tooltip key={i} label="Nhấn để xem tất cả" position="top">
+            <img
+              src={src}
+              alt={`${alt} ${i + 1}`}
+              style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 4, cursor: 'pointer' }}
+              onClick={() => setOpened(true)}
+            />
+          </Tooltip>
+        ))}
+        {remainingCount > 0 && (
+          <Button size="xs" variant="light" onClick={() => setOpened(true)}>
+            +{remainingCount} more
+          </Button>
+        )}
+      </Group>
       <Modal
         opened={opened}
         onClose={() => setOpened(false)}
         title={alt}
         centered
         size="65vw"
-        styles={{ body: { height: '65vh', display: 'flex', alignItems: 'center', justifyContent: 'center' } }}
+        styles={{ body: { maxHeight: '75vh', overflowY: 'auto' } }}
       >
-        <img
-          src={src}
-          alt={alt}
-          style={{ maxWidth: '100%', maxHeight: '100%', borderRadius: 8, objectFit: 'contain' }}
-        />
+        <Group gap="md" justify="center" wrap="wrap">
+          {images.map((src, i) => (
+            <img
+              key={i}
+              src={src}
+              alt={`${alt} ${i + 1}`}
+              style={{ maxWidth: 280, maxHeight: 280, borderRadius: 8, objectFit: 'contain' }}
+            />
+          ))}
+        </Group>
       </Modal>
     </>
   )
@@ -485,7 +506,7 @@ export const OrdersTable = ({ items, checked, onToggleChecked, onUpdateItem }: O
                     <td />
                     <td>
                       { row.original.mainImageUrl ? (
-                        <MainImagePreview src={row.original.mainImageUrl} alt={row.original.productName} />
+                        <MainImagePreview images={row.original.mainImageUrl ?? []} alt={row.original.productName} />
                       ) : (
                         <span>No Image Available</span>
                       )}

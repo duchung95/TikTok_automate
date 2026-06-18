@@ -243,17 +243,17 @@ describe('parseCsvRows', () => {
     const rows = [
       makeRow({ 'Order ID': 'ORD-001', 'Created Time': '01/10/2026 9:00:00 AM', 'Product Name': 'T-Shirt' }),
     ]
-    const imageMapping = { 'T-Shirt': 'https://example.com/tshirt.jpg' }
+    const imageMapping = { 'T-Shirt': ['https://example.com/tshirt.jpg'] }
     const result = parseCsvRows(rows, MOCK_MAPPING, {}, {}, imageMapping)
     expect(result.map((r: OrderItem) => r.orderId)).toEqual(['ORD-001'])
-    expect(result.map((r: OrderItem) => r.mainImageUrl)).toEqual(['https://example.com/tshirt.jpg'])
+    expect(result.map((r: OrderItem) => r.mainImageUrl)).toEqual([['https://example.com/tshirt.jpg']])
   });
 
   it('sorts results with mainImageUrl empty', () => {
     const rows = [
       makeRow({ 'Order ID': 'ORD-001', 'Created Time': '01/10/2026 9:00:00 AM', 'Product Name': 'T-Shirt- Hnh Design Apperal' }),
     ]
-    const imageMapping = { 'T-Shirt cool': 'https://example.com/tshirt.jpg' };
+    const imageMapping = { 'T-Shirt cool': ['https://example.com/tshirt.jpg'] };
     const result = parseCsvRows(rows, MOCK_MAPPING, {}, {}, imageMapping);
     expect(result.map((r: OrderItem) => r.orderId)).toEqual(['ORD-001']);
     expect(result.map((r: OrderItem) => r.mainImageUrl)).toEqual(['']);
@@ -263,30 +263,40 @@ describe('parseCsvRows', () => {
     const rows = [
       makeRow({ 'Order ID': 'ORD-001', 'Created Time': '01/10/2026 9:00:00 AM', 'Product Name': 'T-Shirt - Hnh Design Apperal' }),
     ]
-    const imageMapping = { 'T-Shirt': 'https://example.com/tshirt.jpg' }
+    const imageMapping = { 'T-Shirt': ['https://example.com/tshirt.jpg'] }
     const result = parseCsvRows(rows, MOCK_MAPPING, {}, {}, imageMapping)
     expect(result.map((r: OrderItem) => r.orderId)).toEqual(['ORD-001'])
-    expect(result.map((r: OrderItem) => r.mainImageUrl)).toEqual(['https://example.com/tshirt.jpg'])
+    expect(result.map((r: OrderItem) => r.mainImageUrl)).toEqual([['https://example.com/tshirt.jpg']])
   });
 
   it('sorts results with mainImageUrl with replace name 2', () => {
     const rows = [
       makeRow({ 'Order ID': 'ORD-001', 'Created Time': '01/10/2026 9:00:00 AM', 'Product Name': 'T-Shirt- Hnh Design Apperal' }),
     ]
-    const imageMapping = { 'T-Shirt': 'https://example.com/tshirt.jpg' }
+    const imageMapping = { 'T-Shirt': ['https://example.com/tshirt.jpg'] }
     const result = parseCsvRows(rows, MOCK_MAPPING, {}, {}, imageMapping)
     expect(result.map((r: OrderItem) => r.orderId)).toEqual(['ORD-001'])
-    expect(result.map((r: OrderItem) => r.mainImageUrl)).toEqual(['https://example.com/tshirt.jpg'])
+    expect(result.map((r: OrderItem) => r.mainImageUrl)).toEqual([['https://example.com/tshirt.jpg']])
   });
 
   it('sorts results with mainImageUrl with replace name 3', () => {
     const rows = [
       makeRow({ 'Order ID': 'ORD-001', 'Created Time': '01/10/2026 9:00:00 AM', 'Product Name': 'T-Shirt - HnhDessign Clothing' }),
     ]
-    const imageMapping = { 'T-Shirt': 'https://example.com/tshirt.jpg' }
+    const imageMapping = { 'T-Shirt': ['https://example.com/tshirt.jpg'] }
     const result = parseCsvRows(rows, MOCK_MAPPING, {}, {}, imageMapping)
     expect(result.map((r: OrderItem) => r.orderId)).toEqual(['ORD-001'])
-    expect(result.map((r: OrderItem) => r.mainImageUrl)).toEqual(['https://example.com/tshirt.jpg'])
+    expect(result.map((r: OrderItem) => r.mainImageUrl)).toEqual([['https://example.com/tshirt.jpg']])
+  });
+
+  it('sorts results with mainImageUrl with replace name with more than 1 image', () => {
+    const rows = [
+      makeRow({ 'Order ID': 'ORD-001', 'Created Time': '01/10/2026 9:00:00 AM', 'Product Name': 'T-Shirt - HnhDessign Clothing' }),
+    ]
+    const imageMapping = { 'T-Shirt': ['https://example.com/tshirt.jpg', 'https://example.com/tshirt2.jpg'] }
+    const result = parseCsvRows(rows, MOCK_MAPPING, {}, {}, imageMapping)
+    expect(result.map((r: OrderItem) => r.orderId)).toEqual(['ORD-001'])
+    expect(result.map((r: OrderItem) => r.mainImageUrl)).toEqual([['https://example.com/tshirt.jpg', 'https://example.com/tshirt2.jpg']])
   });
 })
 

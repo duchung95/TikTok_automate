@@ -13,7 +13,7 @@ const MAPPING: Record<string, string> = Object.fromEntries(
     .map(([k, v]) => [k, String(v)])
 );
 
-const imageMapping: Record<string, string> = listingImageMapping as Record<string, string>;
+const imageMapping: Record<string, string[]> = listingImageMapping as Record<string, string[]>;
 const COLOR_FIX: Record<string, string> = raw.color_fix ?? {}
 const SIZE_FIX: Record<string, string>  = raw.size_fix  ?? {}
 
