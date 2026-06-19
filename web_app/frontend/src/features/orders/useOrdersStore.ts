@@ -80,9 +80,39 @@ export const useOrdersStore = () => {
     }
   }, [])
 
-  const updateItem = useCallback((index: number, patch: Partial<OrderItem>) => {
-    setItems(prev => prev.map((item, i) => i === index ? { ...item, ...patch } : item))
-  }, [])
+  // const updateItem = useCallback((index: number, patch: Partial<OrderItem>) => {
+  //   //setItems(prev => prev.map((item, i) => i === index ? { ...item, ...patch } : item));
+  //   let newItems = [...items];
+  //   let orderId = newItems[index].orderId;
+  //   newItems[index] = { ...newItems[index], ...patch };
+
+  //   for (let i = 0; i < newItems.length; i++) {
+  //     const item = newItems[i];
+  //     if (item.orderId === orderId && i !== index) {
+  //       newItems[i] = { ...newItems[i], ...patch };
+  //     }
+      
+  //   }
+  //   setItems(newItems);
+  // }, [])
+
+  const updateItem = (index: number, patch: Partial<OrderItem>) => {
+    //setItems(prev => prev.map((item, i) => i === index ? { ...item, ...patch } : item));
+    let newItems = [...items];
+    let orderId = newItems[index].orderId;
+    newItems[index] = { ...newItems[index], ...patch };
+
+    if (Object.keys(patch).includes('linkLabel')) {
+      for (let i = 0; i < newItems.length; i++) {
+        const item = newItems[i];
+        if (item.orderId === orderId && i !== index) {
+          newItems[i] = { ...newItems[i], ...patch };
+        }
+      }
+      
+    }
+    setItems(newItems);
+  };
 
   const toggleChecked = useCallback((rowKey: string) => {
     setChecked(prev => ({ ...prev, [rowKey]: !prev[rowKey] }))
