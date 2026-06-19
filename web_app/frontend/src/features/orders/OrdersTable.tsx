@@ -15,6 +15,7 @@ import { Modal, Button } from '@mantine/core'
 import { useGoogleLogin } from '@react-oauth/google'
 import { useGoogleAuth } from './GoogleAuthContext'
 import { isRowReady } from './csvParser'
+import { DriveUploadButton } from './DriveUploadButton'
 
 interface OrdersTableProps {
   items: OrderItem[]
@@ -274,8 +275,11 @@ const UrlQuad = ({ items }: { items: UrlQuadItem[] }) => {
               onBlur={() => handleBlur(label, value)}
               style={{ width: 180, flexShrink: 0 }}
             />
-            <Group gap={4} align="center" style={{ width: 180 }}>
-              <Text size="10px" c="dimmed" style={{ flex: 1, textAlign: 'center' }}>{label}</Text>
+            <Group gap={4} align="flex-start" style={{ width: 180 }}>
+              <Stack gap={2} style={{ flex: 1, alignItems: 'center' }}>
+                <Text size="10px" c="dimmed" style={{ textAlign: 'center' }}>{label}</Text>
+                <DriveUploadButton label={label} onChange={onChange} />
+              </Stack>
               {fileId
                 ? <>
                     <GdriveImage

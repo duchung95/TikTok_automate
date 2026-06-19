@@ -26,3 +26,40 @@ export const extractGdriveId = (url: string): string | null => {
 export const gdriveThumbnailUrl = (fileId: string, size = 200): string => {
   return `https://drive.google.com/thumbnail?id=${fileId}&sz=w${size}`
 };
+
+/**
+ * Uploads a file to a Google Drive folder using the multipart upload API.
+ * Requires an access token with the `drive.file` scope.
+ * Returns a standard Google Drive share URL for the uploaded file.
+ */
+export const uploadFileToDrive = async (
+  file: File,
+  accessToken: string,
+  folderId: string
+): Promise<string> => {
+  const metadata = {
+    name: file.name,
+    parents: [folderId],
+  }
+
+  const form = new FormData()
+  form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }))
+  form.append('file', file)
+
+  const res = await fetch(
+    'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id',
+    {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${accessToken}` },
+      body: form,
+    }
+  )
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err?.error?.message ?? `Không thể tải ảnh lên: ${res.status}`)
+  }
+
+  const { id } = await res.json()
+  return `https://drive.google.com/file/d/${id}/view`
+}
