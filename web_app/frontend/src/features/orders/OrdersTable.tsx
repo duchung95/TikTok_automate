@@ -106,6 +106,7 @@ const UrlField = ({ label, value, onChange, showPreview = true }: UrlFieldProps)
         onChange={e => onChange(e.currentTarget.value)}
         style={{ width: 300, flexShrink: 0 }}
       />
+      <DriveUploadButton label={label} onChange={onChange} />
     </Group>
   )
 }

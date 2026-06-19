@@ -47,7 +47,7 @@ const DriveUploadButton = ({ label, onChange }: DriveUploadButtonProps) => {
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/*"
+          accept="image/pdf/*"
           style={{ display: 'none' }}
           onChange={handleFileChange}
           disabled={!signedIn || isUploading}
