@@ -76,7 +76,7 @@ export const GoogleAuthProvider = ({ children }: { children: ReactNode }) => {
       localStorage.removeItem(TOKEN_KEY);
       localStorage.removeItem(EXPIRES_KEY);
     },
-    scope: 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.readonly',
+    scope: 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file',
   });
 
   const signIn = () => {
