@@ -93,7 +93,7 @@ export const parseCsvRows = (
         statusNote:    variantId ? '' : 'Variant ID not found',
         isPartialLock: false,
         productName:   (row['Product Name'] ?? '').trim(),
-        mainImageUrl:      imageMapping[productName] ?? ''
+        mainImageUrl:      imageMapping[productName] ?? []
       }
     })
     .sort((a, b) => parseDate(b.orderDate).getTime() - parseDate(a.orderDate).getTime())
