@@ -320,7 +320,7 @@ const MainImagePreview = ({ images, alt }: { images: string[]; alt: string }) =>
   return (
     <>
       <Group gap={4} align="center" wrap="nowrap">
-        {visibleImages.map((src, i) => (
+        {visibleImages && visibleImages.map((src, i) => (
           <Tooltip key={i} label="Nhấn để xem tất cả" position="top">
             <img
               src={src}
@@ -510,7 +510,7 @@ export const OrdersTable = ({ items, checked, onToggleChecked, onUpdateItem }: O
                   >
                     <td />
                     <td>
-                      { row.original.mainImageUrl ? (
+                      { row?.original?.mainImageUrl?.length && row?.original?.mainImageUrl?.length > 0 ? (
                         <MainImagePreview images={row.original.mainImageUrl ?? []} alt={row.original.productName} />
                       ) : (
                         <span>No Image Available</span>
