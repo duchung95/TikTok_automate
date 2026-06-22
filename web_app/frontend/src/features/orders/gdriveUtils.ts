@@ -61,5 +61,24 @@ export const uploadFileToDrive = async (
   }
 
   const { id } = await res.json()
+
+  // Make the file publicly viewable by anyone with the link
+  const permRes = await fetch(
+    `https://www.googleapis.com/drive/v3/files/${id}/permissions`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ role: 'reader', type: 'anyone' }),
+    }
+  )
+
+  if (!permRes.ok) {
+    const err = await permRes.json().catch(() => ({}))
+    throw new Error(err?.error?.message ?? `Không thể chia sẻ file: ${permRes.status}`)
+  }
+
   return `https://drive.google.com/file/d/${id}/view`
 }
