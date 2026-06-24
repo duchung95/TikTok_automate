@@ -169,6 +169,47 @@ describe('mapVariant', () => {
       variantId: '101',
     })
   })
+
+  // ── 3-part format: "Breed, Size, Color" ──────────────────────────────────
+
+  it('maps 3-part "Breed, Size, Color" format by ignoring breed', () => {
+    const mapping = { 'Pepper, M': '790473' }
+    expect(mapVariant('Golden Retriever, M, Pepper', mapping)).toEqual({
+      fixedVariation: 'Pepper, M',
+      variantId: '790473',
+    })
+  })
+
+  it('maps 3-part format for a different breed with the same color/size', () => {
+    const mapping = { 'Blue Jean, M': '171923' }
+    expect(mapVariant('Labrador Retriever, M, Blue Jean', mapping)).toEqual({
+      fixedVariation: 'Blue Jean, M',
+      variantId: '171923',
+    })
+  })
+
+  it('applies color_fix in 3-part format', () => {
+    const mapping = { 'Ivory, M': '201' }
+    expect(mapVariant('Golden Retriever, M, Irovy', mapping, MOCK_COLOR_FIX, MOCK_SIZE_FIX)).toEqual({
+      fixedVariation: 'Ivory, M',
+      variantId: '201',
+    })
+  })
+
+  it('applies size_fix in 3-part format', () => {
+    const mapping = { 'Pepper, 2XL': '790503' }
+    expect(mapVariant('Golden Retriever, XXL, Pepper', mapping, MOCK_COLOR_FIX, MOCK_SIZE_FIX)).toEqual({
+      fixedVariation: 'Pepper, 2XL',
+      variantId: '790503',
+    })
+  })
+
+  it('returns empty variantId for unknown color in 3-part format', () => {
+    expect(mapVariant('Golden Retriever, M, UnknownColor', MOCK_MAPPING)).toEqual({
+      fixedVariation: 'UnknownColor, M',
+      variantId: '',
+    })
+  })
 })
 
 // ── parseCsvRows ──────────────────────────────────────────────────────────────
