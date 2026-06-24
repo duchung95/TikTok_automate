@@ -78,23 +78,7 @@ export const useOrdersStore = () => {
     } finally {
       setIsLoading(false)
     }
-  }, [])
-
-  // const updateItem = useCallback((index: number, patch: Partial<OrderItem>) => {
-  //   //setItems(prev => prev.map((item, i) => i === index ? { ...item, ...patch } : item));
-  //   let newItems = [...items];
-  //   let orderId = newItems[index].orderId;
-  //   newItems[index] = { ...newItems[index], ...patch };
-
-  //   for (let i = 0; i < newItems.length; i++) {
-  //     const item = newItems[i];
-  //     if (item.orderId === orderId && i !== index) {
-  //       newItems[i] = { ...newItems[i], ...patch };
-  //     }
-      
-  //   }
-  //   setItems(newItems);
-  // }, [])
+  }, []);
 
   const updateItem = (index: number, patch: Partial<OrderItem>) => {
     //setItems(prev => prev.map((item, i) => i === index ? { ...item, ...patch } : item));

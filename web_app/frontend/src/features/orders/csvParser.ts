@@ -40,6 +40,11 @@ export const mapVariant = (
     const color = colorFix[parts[0]] ?? parts[0]
     const size  = sizeFix[parts[1]]  ?? parts[1]
     fixed = `${color}, ${size}`
+  } else if (parts.length === 3) {
+    // Format: "Breed, Size, Color" — breed is design-specific, ignored for variant mapping
+    const size  = sizeFix[parts[1]]  ?? parts[1]
+    const color = colorFix[parts[2]] ?? parts[2]
+    fixed = `${color}, ${size}`
   } else {
     fixed = normalised
   }
