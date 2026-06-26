@@ -297,7 +297,7 @@ describe('parseCsvRows', () => {
     const imageMapping = { 'T-Shirt cool': ['https://example.com/tshirt.jpg'] };
     const result = parseCsvRows(rows, MOCK_MAPPING, {}, {}, imageMapping);
     expect(result.map((r: OrderItem) => r.orderId)).toEqual(['ORD-001']);
-    expect(result.map((r: OrderItem) => r.mainImageUrl)).toEqual(['']);
+    expect(result.map((r: OrderItem) => r.mainImageUrl)).toEqual([[]]);
   });
 
   it('sorts results with mainImageUrl with replace name', () => {

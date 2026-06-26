@@ -16,6 +16,7 @@ import { useGoogleLogin } from '@react-oauth/google'
 import { useGoogleAuth } from './GoogleAuthContext'
 import { isRowReady } from './csvParser'
 import { DriveUploadButton } from './DriveUploadButton'
+import { Row } from 'exceljs'
 
 interface OrdersTableProps {
   items: OrderItem[]
@@ -359,6 +360,29 @@ const MainImagePreview = ({ images, alt }: { images: string[]; alt: string }) =>
   )
 }
 
+interface UVariantIdInputProps {
+  
+  value: string
+  onChange: (val: string) => void
+}
+
+const VariantIdInput = ({ value, onChange }: UVariantIdInputProps) => {
+  //let value = getValue() || '';
+  //const [valueInput, setValueInput] = useState(value);
+  return (
+    <TextInput
+      size="xs"
+      styles={{ input: { fontSize: '11px', height: 24, minHeight: 24 } }}
+      // onChange={e => setValueInput(e.currentTarget.value)}
+      // value={valueInput as string}
+      // onBlur={e => onUpdateItem(row.original.originalIndex, { variantId: valueInput })}
+      value={value}
+      onChange={e => onChange(e.currentTarget.value)}
+      style={{ width: 180, flexShrink: 0 }}
+    />
+  )
+}
+
 export const OrdersTable = ({ items, checked, onToggleChecked, onUpdateItem }: OrdersTableProps) => {
   const [sorting, setSorting] = useState<SortingState>([])
 
@@ -378,13 +402,14 @@ export const OrdersTable = ({ items, checked, onToggleChecked, onUpdateItem }: O
     () => frozenOrderRef.current.map(i => ({ ...items[i], originalIndex: i })),
     [items]
   );
+  //const data = frozenOrderRef.current.map(i => ({ ...items[i], originalIndex: i }))
 
-  const columns = useMemo<ColumnDef<RowData>[]>(() => [
+  const columns = [
     {
       id: 'select',
       header: '',
       size: 40,
-      cell: ({ row }) => {
+      cell: ({ row }: { row: any }) => {
         const status = getRowStatus(row.original)
         const isLocked = status === 'locked' || status === 'partial'
         return (
@@ -425,11 +450,35 @@ export const OrdersTable = ({ items, checked, onToggleChecked, onUpdateItem }: O
       accessorKey: 'variantId',
       header: 'Variant ID',
       size: 90,
-      cell: ({ getValue }) => (
-        <Text size="11px" c={getValue() ? undefined : 'red'}>
-          {String(getValue() || '—')}
-        </Text>
-      ),
+      
+      cell: ({ row, getValue }: { row: any, getValue: any }) => {
+        let value = getValue() || '';
+        const [valueInput, setValueInput] = useState(value);
+        return (
+          <TextInput
+            size="xs"
+            styles={{ input: { fontSize: '11px', height: 24, minHeight: 24 } }}
+            onChange={e => setValueInput(e.currentTarget.value)}
+            value={valueInput as string}
+            onBlur={e => onUpdateItem(row.original.originalIndex, { variantId: valueInput })}
+            // value={row.original.variantId || ''}
+            // onChange={e => onUpdateItem(row.original.originalIndex, { variantId: e.currentTarget.value })}
+            style={{ width: 180, flexShrink: 0 }}
+          />
+        )
+      },
+      // cell: ({ row }: { row: any }) => {
+      //   return (
+      //     <VariantIdInput 
+      //       value={row.original.variantId} 
+      //       onChange={value => onUpdateItem(row.original.originalIndex, { variantId: value })} />
+      //   )
+      // },
+      // cell: ({ getValue }) => (
+      //   <Text size="11px" c={getValue() ? undefined : 'red'}>
+      //     {String(getValue() || '—')}
+      //   </Text>
+      // ),
     },
     {
       accessorKey: 'quantity',
@@ -440,13 +489,13 @@ export const OrdersTable = ({ items, checked, onToggleChecked, onUpdateItem }: O
       id: 'status',
       header: 'Status',
       size: 140,
-      cell: ({ row }) => {
+      cell: ({ row }: { row: any }) => {
         const s = getRowStatus(row.original)
         const { color, label } = STATUS_BADGE[s]
         return <Badge color={color} variant="light" size="xs">{label}</Badge>
       },
     },
-  ], [checked, onToggleChecked])
+  ]
 
   const table = useReactTable({
     data,
