@@ -5,14 +5,20 @@ import {
   shouldSkipRow,
   mapVariant,
   parseCsvRows,
-  markPartialOrders,
   isRowReady,
 } from './csvParser'
 
 const MOCK_MAPPING: Record<string, string> = {
   'Black, M': '101',
   'White, L': '102',
-}
+};
+
+const PARSE_CSV_MOCK_MAPPING: Record<string, Record<string, string>> = {
+  'comfort_c1717': {
+    'Black, M': '101',
+    'White, L': '102',
+  }
+};
 
 const makeRow = (overrides: Record<string, string> = {}): Record<string, string> => ({
   'Order ID': 'ORD-001',
@@ -216,7 +222,7 @@ describe('mapVariant', () => {
 
 describe('parseCsvRows', () => {
   it('returns empty array for empty input', () => {
-    expect(parseCsvRows([], MOCK_MAPPING)).toEqual([])
+    expect(parseCsvRows([], PARSE_CSV_MOCK_MAPPING)).toEqual([]);
   })
 
   it('sorts results by orderDate descending (latest first)', () => {
@@ -225,7 +231,7 @@ describe('parseCsvRows', () => {
       makeRow({ 'Order ID': 'ORD-002', 'Created Time': '03/15/2026 9:00:00 AM' }),
       makeRow({ 'Order ID': 'ORD-003', 'Created Time': '02/01/2026 9:00:00 AM' }),
     ]
-    const result = parseCsvRows(rows, MOCK_MAPPING)
+    const result = parseCsvRows(rows, PARSE_CSV_MOCK_MAPPING)
     expect(result.map((r: OrderItem) => r.orderId)).toEqual(['ORD-002', 'ORD-003', 'ORD-001'])
   })
 
@@ -234,40 +240,40 @@ describe('parseCsvRows', () => {
       makeRow({ 'Order Status': 'Cancelled' }),
       makeRow({ 'Order ID': 'ORD-002' }),
     ]
-    const result = parseCsvRows(rows, MOCK_MAPPING)
+    const result = parseCsvRows(rows, PARSE_CSV_MOCK_MAPPING)
     expect(result).toHaveLength(1)
     expect(result[0].orderId).toBe('ORD-002')
   })
 
   it('maps variant ID correctly', () => {
-    const [item] = parseCsvRows([makeRow()], MOCK_MAPPING)
+    const [item] = parseCsvRows([makeRow({'Product Name': 'Comfort Colors shirt'})], PARSE_CSV_MOCK_MAPPING)
     expect(item.variantId).toBe('101')
   })
 
   it('resolves variant ID from a mapping with stringified numeric values', () => {
-    const realStyleMapping = { 'Black, M': '31001' }
-    const [item] = parseCsvRows([makeRow({ 'Variation': 'Black, M' })], realStyleMapping)
+    const realStyleMapping = {'comfort_c1717': { 'Black, M': '31001' }}
+    const [item] = parseCsvRows([makeRow({ 'Variation': 'Black, M', 'Product Name': 'Comfort Colors shirt' })], realStyleMapping)
     expect(item.variantId).toBe('31001')
   })
 
   it('sets empty variantId and statusNote when variant not found', () => {
-    const [item] = parseCsvRows([makeRow({ 'Variation': 'Unknown, XS' })], MOCK_MAPPING)
+    const [item] = parseCsvRows([makeRow({ 'Variation': 'Unknown, XS', 'Product Name': 'cool shirt' })], PARSE_CSV_MOCK_MAPPING)
     expect(item.variantId).toBe('')
     expect(item.statusNote).toBe('Variant ID not found')
   })
 
   it('parses quantity as a number', () => {
-    const [item] = parseCsvRows([makeRow({ 'Quantity': '3' })], MOCK_MAPPING)
+    const [item] = parseCsvRows([makeRow({ 'Quantity': '3' })], PARSE_CSV_MOCK_MAPPING)
     expect(item.quantity).toBe(3)
   })
 
   it('defaults quantity to 1 when missing', () => {
-    const [item] = parseCsvRows([makeRow({ 'Quantity': '' })], MOCK_MAPPING)
+    const [item] = parseCsvRows([makeRow({ 'Quantity': '' })], PARSE_CSV_MOCK_MAPPING)
     expect(item.quantity).toBe(1)
   })
 
   it('initialises all URL fields as empty strings', () => {
-    const [item] = parseCsvRows([makeRow()], MOCK_MAPPING)
+    const [item] = parseCsvRows([makeRow()], PARSE_CSV_MOCK_MAPPING)
     expect(item.linkLabel).toBe('')
     expect(item.designFront).toBe('')
     expect(item.designBack).toBe('')
@@ -276,7 +282,7 @@ describe('parseCsvRows', () => {
   })
 
   it('initialises isPartialLock as false', () => {
-    const [item] = parseCsvRows([makeRow()], MOCK_MAPPING)
+    const [item] = parseCsvRows([makeRow()], PARSE_CSV_MOCK_MAPPING)
     expect(item.isPartialLock).toBe(false)
   });
 
@@ -285,7 +291,7 @@ describe('parseCsvRows', () => {
       makeRow({ 'Order ID': 'ORD-001', 'Created Time': '01/10/2026 9:00:00 AM', 'Product Name': 'T-Shirt' }),
     ]
     const imageMapping = { 'T-Shirt': ['https://example.com/tshirt.jpg'] }
-    const result = parseCsvRows(rows, MOCK_MAPPING, {}, {}, imageMapping)
+    const result = parseCsvRows(rows, PARSE_CSV_MOCK_MAPPING, {}, {}, imageMapping)
     expect(result.map((r: OrderItem) => r.orderId)).toEqual(['ORD-001'])
     expect(result.map((r: OrderItem) => r.mainImageUrl)).toEqual([['https://example.com/tshirt.jpg']])
   });
@@ -295,7 +301,7 @@ describe('parseCsvRows', () => {
       makeRow({ 'Order ID': 'ORD-001', 'Created Time': '01/10/2026 9:00:00 AM', 'Product Name': 'T-Shirt- Hnh Design Apperal' }),
     ]
     const imageMapping = { 'T-Shirt cool': ['https://example.com/tshirt.jpg'] };
-    const result = parseCsvRows(rows, MOCK_MAPPING, {}, {}, imageMapping);
+    const result = parseCsvRows(rows, PARSE_CSV_MOCK_MAPPING, {}, {}, imageMapping);
     expect(result.map((r: OrderItem) => r.orderId)).toEqual(['ORD-001']);
     expect(result.map((r: OrderItem) => r.mainImageUrl)).toEqual([[]]);
   });
@@ -305,7 +311,7 @@ describe('parseCsvRows', () => {
       makeRow({ 'Order ID': 'ORD-001', 'Created Time': '01/10/2026 9:00:00 AM', 'Product Name': 'T-Shirt - Hnh Design Apperal' }),
     ]
     const imageMapping = { 'T-Shirt': ['https://example.com/tshirt.jpg'] }
-    const result = parseCsvRows(rows, MOCK_MAPPING, {}, {}, imageMapping)
+    const result = parseCsvRows(rows, PARSE_CSV_MOCK_MAPPING, {}, {}, imageMapping)
     expect(result.map((r: OrderItem) => r.orderId)).toEqual(['ORD-001'])
     expect(result.map((r: OrderItem) => r.mainImageUrl)).toEqual([['https://example.com/tshirt.jpg']])
   });
@@ -315,7 +321,7 @@ describe('parseCsvRows', () => {
       makeRow({ 'Order ID': 'ORD-001', 'Created Time': '01/10/2026 9:00:00 AM', 'Product Name': 'T-Shirt- Hnh Design Apperal' }),
     ]
     const imageMapping = { 'T-Shirt': ['https://example.com/tshirt.jpg'] }
-    const result = parseCsvRows(rows, MOCK_MAPPING, {}, {}, imageMapping)
+    const result = parseCsvRows(rows, PARSE_CSV_MOCK_MAPPING, {}, {}, imageMapping)
     expect(result.map((r: OrderItem) => r.orderId)).toEqual(['ORD-001'])
     expect(result.map((r: OrderItem) => r.mainImageUrl)).toEqual([['https://example.com/tshirt.jpg']])
   });
@@ -325,7 +331,7 @@ describe('parseCsvRows', () => {
       makeRow({ 'Order ID': 'ORD-001', 'Created Time': '01/10/2026 9:00:00 AM', 'Product Name': 'T-Shirt - HnhDessign Clothing' }),
     ]
     const imageMapping = { 'T-Shirt': ['https://example.com/tshirt.jpg'] }
-    const result = parseCsvRows(rows, MOCK_MAPPING, {}, {}, imageMapping)
+    const result = parseCsvRows(rows, PARSE_CSV_MOCK_MAPPING, {}, {}, imageMapping)
     expect(result.map((r: OrderItem) => r.orderId)).toEqual(['ORD-001'])
     expect(result.map((r: OrderItem) => r.mainImageUrl)).toEqual([['https://example.com/tshirt.jpg']])
   });
@@ -335,51 +341,11 @@ describe('parseCsvRows', () => {
       makeRow({ 'Order ID': 'ORD-001', 'Created Time': '01/10/2026 9:00:00 AM', 'Product Name': 'T-Shirt - HnhDessign Clothing' }),
     ]
     const imageMapping = { 'T-Shirt': ['https://example.com/tshirt.jpg', 'https://example.com/tshirt2.jpg'] }
-    const result = parseCsvRows(rows, MOCK_MAPPING, {}, {}, imageMapping)
+    const result = parseCsvRows(rows, PARSE_CSV_MOCK_MAPPING, {}, {}, imageMapping)
     expect(result.map((r: OrderItem) => r.orderId)).toEqual(['ORD-001'])
     expect(result.map((r: OrderItem) => r.mainImageUrl)).toEqual([['https://example.com/tshirt.jpg', 'https://example.com/tshirt2.jpg']])
   });
-})
-
-// ── markPartialOrders ─────────────────────────────────────────────────────────
-
-describe('markPartialOrders', () => {
-  it('does not mark a single-row order as partial', () => {
-    const items = parseCsvRows([makeRow()], MOCK_MAPPING)
-    const marked = markPartialOrders(items)
-    expect(marked[0].isPartialLock).toBe(false)
-  })
-
-  it('does not mark an order where all rows have variant IDs', () => {
-    const items = parseCsvRows([
-      makeRow({ 'Order ID': 'ORD-001', 'Variation': 'Black, M' }),
-      makeRow({ 'Order ID': 'ORD-001', 'Variation': 'White, L' }),
-    ], MOCK_MAPPING)
-    const marked = markPartialOrders(items)
-    expect(marked.every((i: OrderItem) => !i.isPartialLock)).toBe(true)
-  })
-
-  it('marks the locked row in a mixed order as partial', () => {
-    const items = parseCsvRows([
-      makeRow({ 'Order ID': 'ORD-001', 'Variation': 'Black, M' }),    // has variant
-      makeRow({ 'Order ID': 'ORD-001', 'Variation': 'Unknown, XS' }), // no variant
-    ], MOCK_MAPPING)
-    const marked = markPartialOrders(items)
-    const lockedRow = marked.find((i: OrderItem) => !i.variantId)!
-    const unlockedRow = marked.find((i: OrderItem) => i.variantId)!
-    expect(lockedRow.isPartialLock).toBe(true)
-    expect(unlockedRow.isPartialLock).toBe(false)
-  })
-
-  it('does not affect rows from different orders', () => {
-    const items = parseCsvRows([
-      makeRow({ 'Order ID': 'ORD-001', 'Variation': 'Black, M' }),
-      makeRow({ 'Order ID': 'ORD-002', 'Variation': 'White, L' }),
-    ], MOCK_MAPPING)
-    const marked = markPartialOrders(items)
-    expect(marked.every((i: OrderItem) => !i.isPartialLock)).toBe(true)
-  })
-})
+});
 
 // ── isRowReady ────────────────────────────────────────────────────────────────
 

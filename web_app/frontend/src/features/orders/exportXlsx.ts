@@ -76,11 +76,11 @@ export function getPartialExportViolations(
   // Group exportable items by orderId
   const exportableByOrder = new Map<string, number[]>()
   items.forEach((item, i) => {
-    if (item.variantId && !item.isPartialLock) {
-      const list = exportableByOrder.get(item.orderId) ?? []
-      list.push(i)
-      exportableByOrder.set(item.orderId, list)
-    }
+    
+    const list = exportableByOrder.get(item.orderId) ?? []
+    list.push(i)
+    exportableByOrder.set(item.orderId, list)
+    
   })
 
   const violations: string[] = []

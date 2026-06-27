@@ -152,26 +152,46 @@ def extract_color_variant():
         color = item['color']
         variant_id = item['variant_id']
         size = item['size']
+        brand = item['brand']
         color_suffix = f'_{color.split('_')[-1]}'
         if style not in style_to_extract:
             continue
+
+        brand_style_key = f"{brand}_{style}".lower()
+        if brand_style_key not in variant_mapping:
+            variant_mapping[brand_style_key] = {}
         if color_suffix in suffix_to_extract:
             # for comfort color which is the default so we don't need to append the suffix 
             # at the end. 
             color_without_suffix = color.replace(color_suffix, '')
             color_map_code_value = COLOR_CODE_MAP.get(color_without_suffix, color_without_suffix)
             mapping_key = f"{color_map_code_value}, {size}"
-            variant_mapping[mapping_key] = variant_id
+            variant_mapping[brand_style_key][mapping_key] = variant_id
         else:
             color_map_code_value = COLOR_CODE_MAP.get(color, color)
             mapping_key = f"{color_map_code_value}, {size}"
-            variant_mapping[mapping_key] = variant_id
+            variant_mapping[brand_style_key][mapping_key] = variant_id
 
     return variant_mapping
 
 def append_to_new_color_mapping(variant_mapping):
-    with open('../src/flashship_mapping.json', 'r+') as f:
-        existing_mapping = json.load(f)
+    existing_mapping = {
+        "_note": "variant_id=null means not found in local sheet \u2014 will auto-fill from API when available",
+        "size_fix": {
+            "XXL": "2XL",
+            "XXXL": "3XL",
+            "XXXXL": "4XL"
+        },
+        "color_fix": {
+            "Irovy": "Ivory",
+            "Crunchberry": "Crunch Berry",
+            "Water Melon": "Watermelon",
+            "Charmbay": "Chambray",
+            "Charmbray": "Chambray",
+            "Blue Spurce": "Blue Spruce"
+        },
+        "variant_map": {}
+    }
     
     new_variant_map = existing_mapping['variant_map']
     new_color_add = []
@@ -181,7 +201,7 @@ def append_to_new_color_mapping(variant_mapping):
             new_color_add.append(key)
 
     existing_mapping['variant_map'] = new_variant_map
-    with open('flashship_mapping.json', 'w') as f:
+    with open('../src/flashship_mapping.json', 'w') as f:
         json.dump(existing_mapping, f, indent=2)
     print("Finish adding new variant mapping")
     print(f"New colors added: {new_color_add}")

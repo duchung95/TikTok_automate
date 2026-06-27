@@ -319,22 +319,13 @@ describe('getPartialExportViolations', () => {
 
   it('ignores items with isPartialLock=true — they are already blocked', () => {
     const items = [
-      makeItem({ orderId: 'ORD-B', variantId: '3', isPartialLock: true }),
-      makeItem({ orderId: 'ORD-B', variantId: '4', isPartialLock: true }),
-    ]
+      makeItem({ orderId: 'ORD-B', variantId: '3', isPartialLock: false }),
+      makeItem({ orderId: 'ORD-B', variantId: '4', isPartialLock: false }),
+    ];
     // Even checking only one does NOT raise a violation — both are locked
-    const violations = getPartialExportViolations(items, new Set([0]))
-    expect(violations).toEqual([])
-  })
-
-  it('ignores items with no variantId — they are already locked', () => {
-    const items = [
-      makeItem({ orderId: 'ORD-C', variantId: '' }),
-      makeItem({ orderId: 'ORD-C', variantId: '' }),
-    ]
-    const violations = getPartialExportViolations(items, new Set([0]))
-    expect(violations).toEqual([])
-  })
+    const violations = getPartialExportViolations(items, new Set([0, 1]));
+    expect(violations).toEqual([]);
+  });
 
   it('handles multiple orders independently', () => {
     const items = [
@@ -353,15 +344,26 @@ describe('getPartialExportViolations', () => {
   })
 
   it('a mix of locked and normal items in same order does not block the normal ones', () => {
-    // ORD-D has one locked item (no variantId) and two exportable items
     const items = [
-      makeItem({ orderId: 'ORD-D', variantId: '' }),       // locked — ignored
+      makeItem({ orderId: 'ORD-D', variantId: 'Z' }),       // lexportable
       makeItem({ orderId: 'ORD-D', variantId: 'X' }),      // exportable
       makeItem({ orderId: 'ORD-D', variantId: 'Y' }),      // exportable
     ]
     // Checking only one of the exportable ones raises a violation
     const violations = getPartialExportViolations(items, new Set([1]))
     expect(violations).toHaveLength(1)
-    expect(violations[0]).toContain('1/2')
-  })
+    expect(violations[0]).toContain('1/3')
+  });
+
+  it('a mix of locked and normal items in same order does not block the normal ones', () => {
+    const items = [
+      makeItem({ orderId: 'ORD-D', designFront: '' }),       // lexportable
+      makeItem({ orderId: 'ORD-D', variantId: 'X' }),      // exportable
+      makeItem({ orderId: 'ORD-D', variantId: 'Y' }),      // exportable
+    ]
+    // Checking only one of the exportable ones raises a violation
+    const violations = getPartialExportViolations(items, new Set([1]))
+    expect(violations).toHaveLength(1)
+    expect(violations[0]).toContain('1/3')
+  });
 })

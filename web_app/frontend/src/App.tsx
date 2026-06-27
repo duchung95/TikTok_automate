@@ -1,17 +1,20 @@
 import { AppShell, NavLink, Text, Group, Badge, Button } from '@mantine/core'
-import { IconPackage, IconPhoto, IconSettings } from '@tabler/icons-react'
+import { IconPackage, IconPhoto, IconSettings, IconColorPicker } from '@tabler/icons-react'
 
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom'
 import { OrdersPage } from './features/orders/OrdersPage'
 import { DesignsPage } from './features/designs/DesignsPage'
+import { ColorVariantTable } from './features/color_variants/ColorVariantTable'
 import { SettingsPage } from './features/settings/SettingsPage'
 import { GoogleAuthProvider, useGoogleAuth } from './features/orders/GoogleAuthContext'
 import { APP_VERSION } from './config'
 
 const NAV_ITEMS = [
   { path: '/orders',   label: 'Orders',   icon: IconPackage  },
+  { path: '/color-variants', label: 'Color Variants', icon: IconColorPicker },
   { path: '/designs',  label: 'Designs',  icon: IconPhoto    },
   { path: '/settings', label: 'Settings', icon: IconSettings },
+  
 ]
 
 
@@ -53,6 +56,7 @@ function AppContent() {
           <Route path="/orders" element={<OrdersPage />} />
           <Route path="/designs" element={<DesignsPage />} />
           <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/color-variants" element={<ColorVariantTable />} />
         </Routes>
       </AppShell.Main>
     </AppShell>

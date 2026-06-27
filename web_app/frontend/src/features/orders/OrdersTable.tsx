@@ -28,6 +28,7 @@ interface OrdersTableProps {
 type RowStatus = 'locked' | 'partial' | 'needs-link-label' | 'needs-design' | 'needs-mockup' | 'ready'
 
 export const getRowStatus = (item: OrderItem): RowStatus => {
+  if (!item.variantId) return 'locked'
   if (!item.variantId && !item.isPartialLock) return 'locked'
   if (item.isPartialLock) return 'partial'
   if (!item.linkLabel.trim()) return 'needs-link-label'
@@ -404,14 +405,14 @@ export const OrdersTable = ({ items, checked, onToggleChecked, onUpdateItem }: O
   );
   //const data = frozenOrderRef.current.map(i => ({ ...items[i], originalIndex: i }))
 
-  const columns = [
+  const columns = useMemo<ColumnDef<RowData>[]>(() => [
     {
       id: 'select',
       header: '',
       size: 40,
       cell: ({ row }: { row: any }) => {
         const status = getRowStatus(row.original)
-        const isLocked = status === 'locked' || status === 'partial'
+        const isLocked = status === 'locked' 
         return (
           <Checkbox
             checked={!!checked[String(row.original.originalIndex)]}
@@ -495,7 +496,7 @@ export const OrdersTable = ({ items, checked, onToggleChecked, onUpdateItem }: O
         return <Badge color={color} variant="light" size="xs">{label}</Badge>
       },
     },
-  ]
+  ], [items, checked, onToggleChecked])
 
   const table = useReactTable({
     data,
@@ -504,7 +505,7 @@ export const OrdersTable = ({ items, checked, onToggleChecked, onUpdateItem }: O
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
-  })
+  });
 
   if (items.length === 0) return null
 

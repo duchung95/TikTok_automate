@@ -1,17 +1,18 @@
 import { useState, useCallback, useEffect } from 'react'
 import Papa from 'papaparse'
-import { parseCsvRows, markPartialOrders } from './csvParser'
+import { parseCsvRows } from './csvParser'
 import type { OrderItem } from './types'
 import rawMapping from '../../flashship_mapping.json';
 import listingImageMapping from '../../../scripts/listing_images.json';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const raw = rawMapping as any
-const MAPPING: Record<string, string> = Object.fromEntries(
-  Object.entries(raw.variant_map as Record<string, unknown>)
-    .filter(([, v]) => v != null)
-    .map(([k, v]) => [k, String(v)])
-);
+// const MAPPING: Record<string, string> = Object.fromEntries(
+//   Object.entries(raw.variant_map as Record<string, unknown>)
+//     .filter(([, v]) => v != null)
+//     .map(([k, v]) => [k, String(v)])
+// );
+const MAPPING: Record<string, Record<string, string>> = raw.variant_map
 
 const imageMapping: Record<string, string[]> = listingImageMapping as Record<string, string[]>;
 const COLOR_FIX: Record<string, string> = raw.color_fix ?? {}
@@ -67,7 +68,7 @@ export const useOrdersStore = () => {
         header: true,
         skipEmptyLines: true,
       })
-      let parsed = markPartialOrders(parseCsvRows(data, MAPPING, COLOR_FIX, SIZE_FIX, imageMapping))
+      let parsed = parseCsvRows(data, MAPPING, COLOR_FIX, SIZE_FIX, imageMapping);
       // Sort by orderDate descending (newest first).
       parsed = parsed.sort((a, b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime())
       setItems(parsed)
@@ -76,7 +77,7 @@ export const useOrdersStore = () => {
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to parse CSV')
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
   }, []);
 
