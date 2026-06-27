@@ -350,6 +350,7 @@ describe('parseCsvRows', () => {
 // ── isRowReady ────────────────────────────────────────────────────────────────
 
 const makeItem = (overrides: Partial<OrderItem> = {}): OrderItem => ({
+  isSelected:   false,
   orderId:       'ORD-001',
   orderDate:     '2026-05-20',
   customer:      'John Doe',
@@ -371,6 +372,7 @@ const makeItem = (overrides: Partial<OrderItem> = {}): OrderItem => ({
   statusNote:    '',
   isPartialLock: false,
   productName:   'T-Shirt',
+  style: 'comfort_c1717',
   ...overrides,
 })
 

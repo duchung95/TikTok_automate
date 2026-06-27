@@ -12,6 +12,8 @@ import {
 } from '@tanstack/react-table'
 import { useState, useMemo, useRef, useEffect } from 'react'
 
+import { MantineReactTable, useMantineReactTable, MRT_ColumnDef } from 'mantine-react-table';
+
 type ColorData = {
   variant_id: number;
   product_type: string;
@@ -25,7 +27,7 @@ export const ColorVariantTable = () => {
 
   const [sorting, setSorting] = useState<SortingState>([]);
   const [search, setSearch] = useState('');
-  const columns = useMemo<ColumnDef<ColorData>[]>(() => [
+  const columns = useMemo<MRT_ColumnDef<ColorData>[]>(() => [
     {
       accessorKey: 'color',
       header: 'Color',
@@ -54,58 +56,36 @@ export const ColorVariantTable = () => {
     
   ], []);
 
-  // const data = flashpod_data['data'].map((item: any) => ({
-  //   variant_id: item.variant_id,
-  //   product_type: item.product_type,
-  //   brand: item.brand,
-  //   style: item.style,
-  //   size: item.size,
-  //   color: item.color,
-  // }));
-  // const table = useReactTable({
-  //   data: [],
-  //   columns,
-  //   onSortingChange: setSorting,
-  //   getCoreRowModel: getCoreRowModel(),
-  //   getSortedRowModel: getSortedRowModel(),
-  // });
+  const data = useMemo(() => flashpod_data['data'].map((item: any) => ({
+    variant_id: item.variant_id,
+    product_type: item.product_type,
+    brand: item.brand,
+    style: item.style,
+    size: item.size,
+    color: item.color,
+  })), [flashpod_data]);
 
-  const handleChange = (event: any) => {
-    console.log('Search input changed:', event.currentTarget.value);
-    setSearch(event.currentTarget.value);
-  }
+  const table = useMantineReactTable({
+    columns,
+    data,
+    mantinePaginationProps: {
+      showRowsPerPage: false,
+    },
+    enableStickyHeader: true,
+    initialState: { 
+      pagination: { 
+        pageSize: 10, // Default number of rows per page
+        pageIndex: 0  // Starts on the first page
+      }, 
+    },
+    paginationDisplayMode: 'pages',
+    positionGlobalFilter: 'right'
+  });
   return (
-    <>
+    <div style={{height: '90vh', overflow: 'auto'}}>
       <Title order={2}>Color Variant Table</Title>
-      <input
-        value={search}
-        onChange={handleChange}
-      />
-      {/* <Box style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr>
-              {table.getFlatHeaders().map(header => (
-                <th key={header.id} style={{ padding: '8px', borderBottom: '1px solid #eee', textAlign: 'left' }}>
-                  {flexRender(header.column.columnDef.header, header.getContext())}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {table.getRowModel().rows.map(row => (
-              <tr key={row.id}>
-                {row.getVisibleCells().map(cell => (
-                  <td key={cell.id} style={{ padding: '8px', borderBottom: '1px solid #eee' }}>
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </Box> */}
-    </>
+      <MantineReactTable table={table} />
+    </div>
   )
 };
 

@@ -8,7 +8,7 @@ import {
   type SortingState,
 } from '@tanstack/react-table'
 import { useState, useMemo, useRef, useEffect } from 'react'
-import { Checkbox, Badge, Text, Box, Stack, Group, TextInput, Tooltip, Loader } from '@mantine/core'
+import { Checkbox, Badge, Text, Box, Stack, Group, TextInput, Tooltip, Loader, Select } from '@mantine/core'
 import type { OrderItem } from './types'
 import { extractGdriveId, gdriveThumbnailUrl } from './gdriveUtils'
 import { Modal, Button } from '@mantine/core'
@@ -403,21 +403,27 @@ export const OrdersTable = ({ items, checked, onToggleChecked, onUpdateItem }: O
     () => frozenOrderRef.current.map(i => ({ ...items[i], originalIndex: i })),
     [items]
   );
-  //const data = frozenOrderRef.current.map(i => ({ ...items[i], originalIndex: i }))
 
+  const styleSelectOptions = [
+    { value: 'comfort_c1717', label: 'Comfort Colors - C1717' },
+    { value: 'gildan_g5000', label: 'Gildan - G5000' },
+  ];
   const columns = useMemo<ColumnDef<RowData>[]>(() => [
     {
-      id: 'select',
+      id: 'isSelected',
       header: '',
       size: 40,
       cell: ({ row }: { row: any }) => {
         const status = getRowStatus(row.original)
-        const isLocked = status === 'locked' 
+        const isLocked = status === 'locked';
+        let isSelected = row.original.isSelected;
         return (
           <Checkbox
-            checked={!!checked[String(row.original.originalIndex)]}
+            checked={isSelected}
             disabled={isLocked}
-            onChange={() => onToggleChecked(String(row.original.originalIndex))}
+            onChange={() => {
+              onUpdateItem(row.original.originalIndex, { isSelected: !isSelected });
+            }}
           />
         )
       },
@@ -430,7 +436,7 @@ export const OrdersTable = ({ items, checked, onToggleChecked, onUpdateItem }: O
     {
       accessorKey: 'orderId',
       header: 'Order ID',
-      size: 150,
+      size: 100,
     },
     {
       accessorKey: 'customer',
@@ -441,11 +447,30 @@ export const OrdersTable = ({ items, checked, onToggleChecked, onUpdateItem }: O
       accessorKey: 'productName',
       header: 'Product Name',
       size: 180,
+      meta: {
+        wrapText: true
+      }
     },
     {
       accessorKey: 'variation',
       header: 'Product',
       size: 200,
+    },
+    {
+      accessorKey: 'style',
+      header: 'Style',
+      size: 200,
+      cell: ({ row, getValue }: { row: any, getValue: any }) => {
+        let value = getValue() || '';
+        return (
+          <Select 
+            size="xs"
+            data={styleSelectOptions}
+            value={value}
+            onChange={(_value, option) => onUpdateItem(row.original.originalIndex, { style: option?.value })}
+          />
+        )
+      },
     },
     {
       accessorKey: 'variantId',
@@ -462,24 +487,10 @@ export const OrdersTable = ({ items, checked, onToggleChecked, onUpdateItem }: O
             onChange={e => setValueInput(e.currentTarget.value)}
             value={valueInput as string}
             onBlur={e => onUpdateItem(row.original.originalIndex, { variantId: valueInput })}
-            // value={row.original.variantId || ''}
-            // onChange={e => onUpdateItem(row.original.originalIndex, { variantId: e.currentTarget.value })}
-            style={{ width: 180, flexShrink: 0 }}
+            style={{ width: 90, flexShrink: 0 }}
           />
         )
       },
-      // cell: ({ row }: { row: any }) => {
-      //   return (
-      //     <VariantIdInput 
-      //       value={row.original.variantId} 
-      //       onChange={value => onUpdateItem(row.original.originalIndex, { variantId: value })} />
-      //   )
-      // },
-      // cell: ({ getValue }) => (
-      //   <Text size="11px" c={getValue() ? undefined : 'red'}>
-      //     {String(getValue() || '—')}
-      //   </Text>
-      // ),
     },
     {
       accessorKey: 'quantity',

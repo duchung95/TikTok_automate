@@ -74,14 +74,17 @@ export const parseCsvRows = (
         .replace(' - Hnh Design Apperal', '')
         .replace(/,$/, "")
         .trimEnd();
+      let style = '';
       let sub_mapping = {};
       if (productName.includes('Comfort Colors')) {
         sub_mapping = mapping['comfort_c1717'];
+        style = 'comfort_c1717';
       }
       const { fixedVariation, variantId } = mapVariant(variation, sub_mapping, colorFix, sizeFix);
       
       const mainImage = imageMapping[productName]
       return {
+        isSelected:   false,
         orderId:       (row['Order ID'] ?? '').trim(),
         orderDate:     parseOrderDate(row['Created Time'] ?? ''),
         customer:      (row['Recipient'] ?? '').trim(),
@@ -103,7 +106,8 @@ export const parseCsvRows = (
         statusNote:    variantId ? '' : 'Variant ID not found',
         isPartialLock: false,
         productName:   (row['Product Name'] ?? '').trim(),
-        mainImageUrl:      imageMapping[productName] ?? []
+        mainImageUrl:   imageMapping[productName] ?? [],
+        style
       }
     })
     .sort((a, b) => parseDate(b.orderDate).getTime() - parseDate(a.orderDate).getTime())

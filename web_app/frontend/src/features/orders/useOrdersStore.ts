@@ -86,8 +86,20 @@ export const useOrdersStore = () => {
     let newItems = [...items];
     let orderId = newItems[index].orderId;
     newItems[index] = { ...newItems[index], ...patch };
+    let variantion = newItems[index].variation;
+    if (Object.keys(patch).includes('style')) {
+      if (patch['style'] && MAPPING[patch.style]) {
+        if (variantion && MAPPING[patch.style][variantion]) {
+          newItems[index].variantId = MAPPING[patch.style][variantion];
+        } else {
+          newItems[index].variantId = '';
+        }
+      } else {
+        newItems[index].variantId = '';
+      }
+    }
 
-    if (Object.keys(patch).includes('linkLabel')) {
+    if (Object.keys(patch).includes('linkLabel') || Object.keys(patch).includes('isSelected')) {
       for (let i = 0; i < newItems.length; i++) {
         const item = newItems[i];
         if (item.orderId === orderId && i !== index) {

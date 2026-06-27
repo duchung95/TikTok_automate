@@ -42,6 +42,7 @@ const SHEETS_API = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}`
 // ── Test fixtures ────────────────────────────────────────────────────────────
 
 const makeItem = (overrides: Partial<OrderItem> = {}): OrderItem => ({
+  isSelected: true,
   orderId: 'ORD-001',
   orderDate: '2026-05-20',
   customer: 'John Doe',
@@ -63,6 +64,7 @@ const makeItem = (overrides: Partial<OrderItem> = {}): OrderItem => ({
   statusNote: '',
   isPartialLock: false,
   productName: 'T-Shirt Black',
+  style:          'comfort_c1717',
   ...overrides,
 })
 
@@ -264,7 +266,7 @@ describe('appendToSheet', () => {
   it('throws error when no items are selected', async () => {
     saveAccessToken(MOCK_TOKEN)
     await expect(
-      appendToSheet({ items: [makeItem()], checkedIndices: new Set(), onDuplicatesFound: vi.fn() })
+      appendToSheet({ items: [makeItem({isSelected: false})], checkedIndices: new Set(), onDuplicatesFound: vi.fn() })
     ).rejects.toThrow('Chưa chọn đơn hàng nào')
   })
 
