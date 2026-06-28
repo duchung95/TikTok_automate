@@ -25,7 +25,14 @@ export const OrdersPage = () => {
     item => getRowStatus(item) !== 'ready'
   ).length
 
-  const checkedCount = Object.values(checked).filter(Boolean).length
+  const selectedItems: Record<string, number> = {};
+  items.forEach((item, i) => {
+    if (item.isSelected) {
+      selectedItems[item.orderId] = 1;
+    }
+  });
+  //const checkedCount = Object.values(checked).filter(Boolean).length
+  const checkedCount = Object.keys(selectedItems).length;
   const checkedIndices = new Set(
     Object.entries(checked).filter(([, v]) => v).map(([k]) => Number(k))
   )
@@ -35,7 +42,7 @@ export const OrdersPage = () => {
   const [exportingToSheet, setExportingToSheet] = useState(false)
   const [duplicateModal, setDuplicateModal] = useState<null | { duplicateOrderIds: string[], onAction: (action: 'skip' | 'overwrite' | 'cancel') => void }>(null);
   const invalidSelectedItems = () => {
-    const invalidItems = items.filter((item, i) => checkedIndices.has(i) && getRowStatus(item) !== 'ready');
+    const invalidItems = items.filter((item, i) => item.isSelected &&getRowStatus(item) !== 'ready');
     if (invalidItems.length > 0) {
       setExportError(
         'Không thể xuất đơn hàng thiếu thông tin:\n' + invalidItems.map(item => `${item.orderId}`).join('\n')
@@ -60,14 +67,6 @@ export const OrdersPage = () => {
         color: 'yellow',
       });
       return;
-    }
-
-    const violations = getPartialExportViolations(items, checkedIndices);
-    if (violations.length > 0) {
-      setExportError(
-        'Không thể xuất — đơn bị chia lẻ:\n' + violations.join('\n')
-      )
-      return
     }
     
     const invalidItems = invalidSelectedItems();
@@ -115,15 +114,8 @@ export const OrdersPage = () => {
 
   const handleExport = async () => {
     setExportError(null);
-    const violations = getPartialExportViolations(items, checkedIndices);
     const invalidItems = invalidSelectedItems();
     if (invalidItems) return;
-    if (violations.length > 0) {
-      setExportError(
-        'Không thể xuất — đơn bị chia lẻ:\n' + violations.join('\n')
-      )
-      return
-    }
     setIsExporting(true)
     try {
       await exportToXlsx(items, checkedIndices)

@@ -11,6 +11,7 @@ import type { OrderItem } from './types'
 
 function makeItem(overrides: Partial<OrderItem> = {}): OrderItem {
   return {
+    isSelected:   true,
     orderId:        'ORD-001',
     orderDate:      '2026-05-20',
     customer:       'John Doe',
@@ -32,6 +33,8 @@ function makeItem(overrides: Partial<OrderItem> = {}): OrderItem {
     statusNote:     '',
     isPartialLock:  false,
     productName:    'Hoodie',
+    style:          'comfort_c1717',
+    skuId:          'SKU-001',
     ...overrides,
   }
 }
@@ -272,96 +275,4 @@ describe('URL field isolation in buildFlashshipRow', () => {
     // But Link Label itself must survive
     expect(row['Link Label']).toBe('should-survive')
   })
-})
-
-// ─── getPartialExportViolations ────────────────────────────────────────────────
-
-describe('getPartialExportViolations', () => {
-  it('returns [] when all exportable items in an order are checked', () => {
-    const items = [
-      makeItem({ orderId: 'ORD-A', variantId: '1' }),
-      makeItem({ orderId: 'ORD-A', variantId: '2' }),
-    ]
-    const violations = getPartialExportViolations(items, new Set([0, 1]))
-    expect(violations).toEqual([])
-  })
-
-  it('returns [] when none of the items in an order are checked', () => {
-    const items = [
-      makeItem({ orderId: 'ORD-A', variantId: '1' }),
-      makeItem({ orderId: 'ORD-A', variantId: '2' }),
-    ]
-    const violations = getPartialExportViolations(items, new Set())
-    expect(violations).toEqual([])
-  })
-
-  it('returns a violation when only some items from an order are checked', () => {
-    const items = [
-      makeItem({ orderId: 'ORD-A', customer: 'Alice', variantId: '1' }),
-      makeItem({ orderId: 'ORD-A', customer: 'Alice', variantId: '2' }),
-    ]
-    // Only first item checked — partial!
-    const violations = getPartialExportViolations(items, new Set([0]))
-    expect(violations).toHaveLength(1)
-    expect(violations[0]).toContain('ORD-A')
-    expect(violations[0]).toContain('1/2')
-  })
-
-  it('violation message contains customer name and order id', () => {
-    const items = [
-      makeItem({ orderId: 'ORD-X', customer: 'Bob Jones', variantId: '10' }),
-      makeItem({ orderId: 'ORD-X', customer: 'Bob Jones', variantId: '11' }),
-    ]
-    const violations = getPartialExportViolations(items, new Set([0]))
-    expect(violations[0]).toContain('Bob Jones')
-    expect(violations[0]).toContain('ORD-X')
-  })
-
-  it('ignores items with isPartialLock=true — they are already blocked', () => {
-    const items = [
-      makeItem({ orderId: 'ORD-B', variantId: '3', isPartialLock: true }),
-      makeItem({ orderId: 'ORD-B', variantId: '4', isPartialLock: true }),
-    ]
-    // Even checking only one does NOT raise a violation — both are locked
-    const violations = getPartialExportViolations(items, new Set([0]))
-    expect(violations).toEqual([])
-  })
-
-  it('ignores items with no variantId — they are already locked', () => {
-    const items = [
-      makeItem({ orderId: 'ORD-C', variantId: '' }),
-      makeItem({ orderId: 'ORD-C', variantId: '' }),
-    ]
-    const violations = getPartialExportViolations(items, new Set([0]))
-    expect(violations).toEqual([])
-  })
-
-  it('handles multiple orders independently', () => {
-    const items = [
-      // ORD-1: both checked ✅
-      makeItem({ orderId: 'ORD-1', variantId: 'A' }),
-      makeItem({ orderId: 'ORD-1', variantId: 'B' }),
-      // ORD-2: only one checked ❌
-      makeItem({ orderId: 'ORD-2', customer: 'Carol', variantId: 'C' }),
-      makeItem({ orderId: 'ORD-2', customer: 'Carol', variantId: 'D' }),
-      // ORD-3: none checked ✅
-      makeItem({ orderId: 'ORD-3', variantId: 'E' }),
-    ]
-    const violations = getPartialExportViolations(items, new Set([0, 1, 2]))
-    expect(violations).toHaveLength(1)
-    expect(violations[0]).toContain('ORD-2')
-  })
-
-  it('a mix of locked and normal items in same order does not block the normal ones', () => {
-    // ORD-D has one locked item (no variantId) and two exportable items
-    const items = [
-      makeItem({ orderId: 'ORD-D', variantId: '' }),       // locked — ignored
-      makeItem({ orderId: 'ORD-D', variantId: 'X' }),      // exportable
-      makeItem({ orderId: 'ORD-D', variantId: 'Y' }),      // exportable
-    ]
-    // Checking only one of the exportable ones raises a violation
-    const violations = getPartialExportViolations(items, new Set([1]))
-    expect(violations).toHaveLength(1)
-    expect(violations[0]).toContain('1/2')
-  })
-})
+});

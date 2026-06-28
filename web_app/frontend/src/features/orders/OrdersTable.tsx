@@ -8,7 +8,7 @@ import {
   type SortingState,
 } from '@tanstack/react-table'
 import { useState, useMemo, useRef, useEffect } from 'react'
-import { Checkbox, Badge, Text, Box, Stack, Group, TextInput, Tooltip, Loader } from '@mantine/core'
+import { Checkbox, Badge, Text, Box, Stack, Group, TextInput, Tooltip, Loader, Select } from '@mantine/core'
 import type { OrderItem } from './types'
 import { extractGdriveId, gdriveThumbnailUrl } from './gdriveUtils'
 import { Modal, Button } from '@mantine/core'
@@ -16,6 +16,7 @@ import { useGoogleLogin } from '@react-oauth/google'
 import { useGoogleAuth } from './GoogleAuthContext'
 import { isRowReady } from './csvParser'
 import { DriveUploadButton } from './DriveUploadButton'
+import { Row } from 'exceljs'
 
 interface OrdersTableProps {
   items: OrderItem[]
@@ -27,6 +28,7 @@ interface OrdersTableProps {
 type RowStatus = 'locked' | 'partial' | 'needs-link-label' | 'needs-design' | 'needs-mockup' | 'ready'
 
 export const getRowStatus = (item: OrderItem): RowStatus => {
+  if (!item.variantId) return 'locked'
   if (!item.variantId && !item.isPartialLock) return 'locked'
   if (item.isPartialLock) return 'partial'
   if (!item.linkLabel.trim()) return 'needs-link-label'
@@ -314,12 +316,13 @@ const MainImagePreview = ({ images, alt }: { images: string[]; alt: string }) =>
   if (!images || images.length === 0)
     return <Text size="xs" c="dimmed">No image</Text>
 
-  const visibleImages = images.slice(0, 2)
-  const remainingCount = images.length - 2
+  const IMAGE_PREVIEW = 1;
+  const visibleImages = images.slice(0, IMAGE_PREVIEW);
+  const remainingCount = images.length - IMAGE_PREVIEW;
 
   return (
     <>
-      <Group gap={4} align="center" wrap="nowrap">
+      <Group gap={4} align="center">
         {visibleImages && visibleImages.map((src, i) => (
           <Tooltip key={i} label="Nhấn để xem tất cả" position="top">
             <img
@@ -359,6 +362,29 @@ const MainImagePreview = ({ images, alt }: { images: string[]; alt: string }) =>
   )
 }
 
+interface UVariantIdInputProps {
+  
+  value: string
+  onChange: (val: string) => void
+}
+
+const VariantIdInput = ({ value, onChange }: UVariantIdInputProps) => {
+  //let value = getValue() || '';
+  //const [valueInput, setValueInput] = useState(value);
+  return (
+    <TextInput
+      size="xs"
+      styles={{ input: { fontSize: '11px', height: 24, minHeight: 24 } }}
+      // onChange={e => setValueInput(e.currentTarget.value)}
+      // value={valueInput as string}
+      // onBlur={e => onUpdateItem(row.original.originalIndex, { variantId: valueInput })}
+      value={value}
+      onChange={e => onChange(e.currentTarget.value)}
+      style={{ width: 180, flexShrink: 0 }}
+    />
+  )
+}
+
 export const OrdersTable = ({ items, checked, onToggleChecked, onUpdateItem }: OrdersTableProps) => {
   const [sorting, setSorting] = useState<SortingState>([])
 
@@ -379,19 +405,26 @@ export const OrdersTable = ({ items, checked, onToggleChecked, onUpdateItem }: O
     [items]
   );
 
+  const styleSelectOptions = [
+    { value: 'comfort_c1717', label: 'Comfort Colors - C1717' },
+    { value: 'gildan_g5000', label: 'Gildan - G5000' },
+  ];
   const columns = useMemo<ColumnDef<RowData>[]>(() => [
     {
-      id: 'select',
+      id: 'isSelected',
       header: '',
       size: 40,
-      cell: ({ row }) => {
+      cell: ({ row }: { row: any }) => {
         const status = getRowStatus(row.original)
-        const isLocked = status === 'locked' || status === 'partial'
+        const isLocked = status === 'locked';
+        let isSelected = row.original.isSelected;
         return (
           <Checkbox
-            checked={!!checked[String(row.original.originalIndex)]}
+            checked={isSelected}
             disabled={isLocked}
-            onChange={() => onToggleChecked(String(row.original.originalIndex))}
+            onChange={() => {
+              onUpdateItem(row.original.originalIndex, { isSelected: !isSelected });
+            }}
           />
         )
       },
@@ -399,12 +432,12 @@ export const OrdersTable = ({ items, checked, onToggleChecked, onUpdateItem }: O
     {
       accessorKey: 'orderDate',
       header: 'Date',
-      size: 100,
+      size: 50,
     },
     {
       accessorKey: 'orderId',
       header: 'Order ID',
-      size: 150,
+      size: 100,
     },
     {
       accessorKey: 'customer',
@@ -414,22 +447,48 @@ export const OrdersTable = ({ items, checked, onToggleChecked, onUpdateItem }: O
     {
       accessorKey: 'productName',
       header: 'Product Name',
-      size: 180,
+      size: 350,
     },
     {
       accessorKey: 'variation',
       header: 'Product',
-      size: 200,
+      size: 100,
+    },
+    {
+      accessorKey: 'style',
+      header: 'Style',
+      size: 150,
+      cell: ({ row, getValue }: { row: any, getValue: any }) => {
+        let value = getValue() || '';
+        return (
+          <Select 
+            size="xs"
+            data={styleSelectOptions}
+            value={value}
+            onChange={(_value, option) => onUpdateItem(row.original.originalIndex, { style: option?.value })}
+          />
+        )
+      },
     },
     {
       accessorKey: 'variantId',
       header: 'Variant ID',
       size: 90,
-      cell: ({ getValue }) => (
-        <Text size="11px" c={getValue() ? undefined : 'red'}>
-          {String(getValue() || '—')}
-        </Text>
-      ),
+      
+      cell: ({ row, getValue }: { row: any, getValue: any }) => {
+        let value = getValue() || '';
+        const [valueInput, setValueInput] = useState(value);
+        return (
+          <TextInput
+            size="xs"
+            styles={{ input: { fontSize: '11px', height: 24, minHeight: 24 } }}
+            onChange={e => setValueInput(e.currentTarget.value)}
+            value={valueInput as string}
+            onBlur={e => onUpdateItem(row.original.originalIndex, { variantId: valueInput })}
+            style={{ width: 90, flexShrink: 0 }}
+          />
+        )
+      },
     },
     {
       accessorKey: 'quantity',
@@ -440,13 +499,13 @@ export const OrdersTable = ({ items, checked, onToggleChecked, onUpdateItem }: O
       id: 'status',
       header: 'Status',
       size: 140,
-      cell: ({ row }) => {
+      cell: ({ row }: { row: any }) => {
         const s = getRowStatus(row.original)
         const { color, label } = STATUS_BADGE[s]
         return <Badge color={color} variant="light" size="xs">{label}</Badge>
       },
     },
-  ], [checked, onToggleChecked])
+  ], [items, checked, onToggleChecked])
 
   const table = useReactTable({
     data,
@@ -455,7 +514,7 @@ export const OrdersTable = ({ items, checked, onToggleChecked, onUpdateItem }: O
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
-  })
+  });
 
   if (items.length === 0) return null
 
@@ -498,7 +557,7 @@ export const OrdersTable = ({ items, checked, onToggleChecked, onUpdateItem }: O
                     style={{ background: bg, borderBottom: '1px solid var(--mantine-color-gray-2)' }}
                   >
                     {row.getVisibleCells().map(cell => (
-                      <td key={cell.id} style={{ padding: '5px 8px 3px', fontSize: '11px' }}>
+                      <td key={cell.column.id} style={{ padding: '5px 8px 3px', fontSize: '11px' }}>
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </td>
                     ))}

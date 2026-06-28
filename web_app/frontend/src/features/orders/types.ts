@@ -1,4 +1,5 @@
 export interface OrderItem {
+  isSelected: boolean
   orderId: string
   orderDate: string       // ISO date string YYYY-MM-DD
   customer: string
@@ -21,4 +22,6 @@ export interface OrderItem {
   isPartialLock: boolean
   productName: string
   mainImageUrl?: string[]
+  style: string
+  skuId: string
 }

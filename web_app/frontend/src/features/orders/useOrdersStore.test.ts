@@ -25,6 +25,9 @@ const mockOrderItem: OrderItem = {
   statusNote: "",
   isPartialLock: false,
   productName:    'T-Shirt',
+  style:          'comfort_c1717',
+  isSelected:     true,
+  skuId:          'SKU-001',
 };
 
 describe("useOrdersStore (React hook version)", () => {

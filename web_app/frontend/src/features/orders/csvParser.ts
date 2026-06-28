@@ -54,7 +54,7 @@ export const mapVariant = (
 
 export const parseCsvRows = (
   rows: Record<string, string>[],
-  mapping: Record<string, string>,
+  mapping: Record<string, Record<string, string>>,
   colorFix: Record<string, string> = {},
   sizeFix: Record<string, string> = {},
   imageMapping: Record<string, string[]> = {},
@@ -66,8 +66,7 @@ export const parseCsvRows = (
   return rows
     .filter(row => !shouldSkipRow(row))
     .map(row => {
-      const variation = (row['Variation'] ?? '').trim()
-      const { fixedVariation, variantId } = mapVariant(variation, mapping, colorFix, sizeFix);
+      const variation = (row['Variation'] ?? '').trim();
       const productName = (row['Product Name'] ?? '').trim()
         .replace('- HnhDessign Clothing', '')
         .replace(' - HnhDessign Clothing', '')
@@ -75,8 +74,17 @@ export const parseCsvRows = (
         .replace(' - Hnh Design Apperal', '')
         .replace(/,$/, "")
         .trimEnd();
+      let style = '';
+      let sub_mapping = {};
+      if (productName.includes('Comfort Colors')) {
+        sub_mapping = mapping['comfort_c1717'];
+        style = 'comfort_c1717';
+      }
+      const { fixedVariation, variantId } = mapVariant(variation, sub_mapping, colorFix, sizeFix);
+      
       const mainImage = imageMapping[productName]
       return {
+        isSelected:   false,
         orderId:       (row['Order ID'] ?? '').trim(),
         orderDate:     parseOrderDate(row['Created Time'] ?? ''),
         customer:      (row['Recipient'] ?? '').trim(),
@@ -98,27 +106,14 @@ export const parseCsvRows = (
         statusNote:    variantId ? '' : 'Variant ID not found',
         isPartialLock: false,
         productName:   (row['Product Name'] ?? '').trim(),
-        mainImageUrl:      imageMapping[productName] ?? []
+        mainImageUrl:   imageMapping[productName] ?? [],
+        style,
+        skuId: (row['SKU ID'] ?? '').trim(),
+
       }
     })
     .sort((a, b) => parseDate(b.orderDate).getTime() - parseDate(a.orderDate).getTime())
     //.sort((a, b) => b.orderDate.localeCompare(a.orderDate))
-};
-
-export const markPartialOrders = (items: OrderItem[]): OrderItem[] => {
-  const orderGroups = new Map<string, OrderItem[]>()
-  for (const item of items) {
-    const group = orderGroups.get(item.orderId) ?? []
-    group.push(item)
-    orderGroups.set(item.orderId, group)
-  }
-  return items.map(item => {
-    const group = orderGroups.get(item.orderId)!
-    const hasLocked = group.some(i => !i.variantId)
-    const hasUnlocked = group.some(i => i.variantId)
-    const isPartialLock = group.length > 1 && hasLocked && hasUnlocked && !item.variantId
-    return { ...item, isPartialLock }
-  });
 };
 
 /**

@@ -3,6 +3,7 @@ import type { OrderItem } from './types'
 import { getRowStatus } from './OrdersTable'
 
 const makeItem = (overrides: Partial<OrderItem> = {}): OrderItem => ({
+  isSelected: true,
   orderId: 'ORD-001',
   orderDate: '2026-05-20',
   customer: 'John Doe',
@@ -24,6 +25,8 @@ const makeItem = (overrides: Partial<OrderItem> = {}): OrderItem => ({
   statusNote: '',
   isPartialLock: false,
   productName:    'T-Shirt',
+  style:          'comfort_c1717',
+  skuId:          'SKU-001',
   ...overrides,
 })
 

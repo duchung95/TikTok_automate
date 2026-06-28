@@ -73,23 +73,26 @@ export function getPartialExportViolations(
   items: OrderItem[],
   checkedIndices: Set<number>
 ): string[] {
-  // Group exportable items by orderId
-  const exportableByOrder = new Map<string, number[]>()
+  const exportableByOrder: Record<string, any> = {};
   items.forEach((item, i) => {
-    if (item.variantId && !item.isPartialLock) {
-      const list = exportableByOrder.get(item.orderId) ?? []
-      list.push(i)
-      exportableByOrder.set(item.orderId, list)
+    if (!(item.orderId in exportableByOrder)) {
+      exportableByOrder[item.orderId] = {
+        selected: [],
+        customer: item.customer
+      };
     }
+    const list = exportableByOrder[item.orderId].selected;
+    list.push(item.isSelected);
+    exportableByOrder[item.orderId].selected = list;
   })
 
   const violations: string[] = []
-  for (const [orderId, exportableIndices] of exportableByOrder) {
-    const checkedCount = exportableIndices.filter(i => checkedIndices.has(i)).length
-    if (checkedCount > 0 && checkedCount < exportableIndices.length) {
-      const customer = items[exportableIndices[0]].customer || orderId
+  for (const [orderId, details] of Object.entries(exportableByOrder)) {
+    const checkedCount = details.selected.filter((i: any) => i).length
+    if (checkedCount > 0 && checkedCount < details.selected.length) {
+      const customer = details.customer || orderId
       violations.push(
-        `${customer} (${orderId}) — đã chọn ${checkedCount}/${exportableIndices.length} sản phẩm`
+        `${customer} (${orderId}) — đã chọn ${checkedCount}/${details.selected.length} sản phẩm`
       )
     }
   }
@@ -112,7 +115,7 @@ export const exportToXlsx = async (
 
   // Data rows
   items.forEach((item, i) => {
-    if (!checkedIndices.has(i)) return
+    if (item.isSelected === false) return;
     const row = buildFlashshipRow(item)
     sheet.addRow(FLASHSHIP_COLUMNS.map(col => row[col] ?? ''))
   })

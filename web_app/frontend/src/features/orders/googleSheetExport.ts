@@ -207,10 +207,15 @@ const fetchExistingDesignNames = async (token: string): Promise<Set<string>> => 
  */
 export const buildDesignRow = (item: OrderItem): string[] => [
   item.productName,
-  item.designFront || item.designBack,
+  item.designFront,
   '',
-  item.mockupFront || item.mockupBack,
+  item.mockupFront,
   '',
+  item.designBack,
+  '',
+  item.mockupBack,
+  '',
+  item.skuId
 ]
 
 /**
@@ -268,7 +273,7 @@ export const appendToSheet = async ({
   const token = getAccessToken()
   if (!token) throw new Error('Chưa đăng nhập Google. Vui lòng đăng nhập trong trang Cài đặt.')
 
-  const selectedItems = items.filter((_, i) => checkedIndices.has(i))
+  const selectedItems = items.filter((item, i) => item.isSelected)
   if (selectedItems.length === 0) throw new Error('Chưa chọn đơn hàng nào.')
 
   // 1. Read existing Order IDs from the sheet
