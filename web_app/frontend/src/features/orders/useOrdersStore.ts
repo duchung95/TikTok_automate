@@ -6,21 +6,15 @@ import rawMapping from '../../flashship_mapping.json';
 import listingImageMapping from '../../../scripts/listing_images.json';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const raw = rawMapping as any
-// const MAPPING: Record<string, string> = Object.fromEntries(
-//   Object.entries(raw.variant_map as Record<string, unknown>)
-//     .filter(([, v]) => v != null)
-//     .map(([k, v]) => [k, String(v)])
-// );
-const MAPPING: Record<string, Record<string, string>> = raw.variant_map
+const raw = rawMapping as any;
+const MAPPING: Record<string, Record<string, string>> = raw.variant_map;
 
 const imageMapping: Record<string, string[]> = listingImageMapping as Record<string, string[]>;
-const COLOR_FIX: Record<string, string> = raw.color_fix ?? {}
-const SIZE_FIX: Record<string, string>  = raw.size_fix  ?? {}
+const COLOR_FIX: Record<string, string> = raw.color_fix ?? {};
+const SIZE_FIX: Record<string, string>  = raw.size_fix  ?? {};
 
-const LOCAL_STORAGE_KEY = "ordersPageState"
-
-type CheckedState = Record<string, boolean>  // row index → checked
+const LOCAL_STORAGE_KEY = "ordersPageState";
+type CheckedState = Record<string, boolean>;  // row index → checked
 
 export const useOrdersStore = () => {
   // Restore from localStorage if available

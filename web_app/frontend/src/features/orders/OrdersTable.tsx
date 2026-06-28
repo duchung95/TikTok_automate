@@ -316,12 +316,13 @@ const MainImagePreview = ({ images, alt }: { images: string[]; alt: string }) =>
   if (!images || images.length === 0)
     return <Text size="xs" c="dimmed">No image</Text>
 
-  const visibleImages = images.slice(0, 2)
-  const remainingCount = images.length - 2
+  const IMAGE_PREVIEW = 1;
+  const visibleImages = images.slice(0, IMAGE_PREVIEW);
+  const remainingCount = images.length - IMAGE_PREVIEW;
 
   return (
     <>
-      <Group gap={4} align="center" wrap="nowrap">
+      <Group gap={4} align="center">
         {visibleImages && visibleImages.map((src, i) => (
           <Tooltip key={i} label="Nhấn để xem tất cả" position="top">
             <img
@@ -431,7 +432,7 @@ export const OrdersTable = ({ items, checked, onToggleChecked, onUpdateItem }: O
     {
       accessorKey: 'orderDate',
       header: 'Date',
-      size: 100,
+      size: 50,
     },
     {
       accessorKey: 'orderId',
@@ -446,20 +447,17 @@ export const OrdersTable = ({ items, checked, onToggleChecked, onUpdateItem }: O
     {
       accessorKey: 'productName',
       header: 'Product Name',
-      size: 180,
-      meta: {
-        wrapText: true
-      }
+      size: 350,
     },
     {
       accessorKey: 'variation',
       header: 'Product',
-      size: 200,
+      size: 100,
     },
     {
       accessorKey: 'style',
       header: 'Style',
-      size: 200,
+      size: 150,
       cell: ({ row, getValue }: { row: any, getValue: any }) => {
         let value = getValue() || '';
         return (
@@ -559,7 +557,7 @@ export const OrdersTable = ({ items, checked, onToggleChecked, onUpdateItem }: O
                     style={{ background: bg, borderBottom: '1px solid var(--mantine-color-gray-2)' }}
                   >
                     {row.getVisibleCells().map(cell => (
-                      <td key={cell.id} style={{ padding: '5px 8px 3px', fontSize: '11px' }}>
+                      <td key={cell.column.id} style={{ padding: '5px 8px 3px', fontSize: '11px' }}>
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </td>
                     ))}

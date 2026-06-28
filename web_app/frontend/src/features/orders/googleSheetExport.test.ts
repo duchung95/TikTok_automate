@@ -65,6 +65,7 @@ const makeItem = (overrides: Partial<OrderItem> = {}): OrderItem => ({
   isPartialLock: false,
   productName: 'T-Shirt Black',
   style:          'comfort_c1717',
+  skuId:          'SKU-001',
   ...overrides,
 })
 
@@ -452,12 +453,17 @@ describe('buildDesignRow', () => {
 
   it('falls back to designBack when designFront is empty', () => {
     const row = buildDesignRow(makeItem({ designFront: '', designBack: 'https://back.url' }))
-    expect(row[1]).toBe('https://back.url')
+    expect(row[5]).toBe('https://back.url')
   })
 
   it('falls back to mockupBack when mockupFront is empty', () => {
     const row = buildDesignRow(makeItem({ mockupFront: '', mockupBack: 'https://mockup-back.url' }))
-    expect(row[3]).toBe('https://mockup-back.url')
+    expect(row[7]).toBe('https://mockup-back.url')
+  })
+
+  it('include the SKU ID', () => {
+    const row = buildDesignRow(makeItem({ skuId: 'SKU-001' }))
+    expect(row[9]).toBe('SKU-001')
   })
 })
 

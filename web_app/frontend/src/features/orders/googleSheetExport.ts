@@ -214,7 +214,8 @@ export const buildDesignRow = (item: OrderItem): string[] => [
   item.designBack,
   '',
   item.mockupBack,
-  ''
+  '',
+  item.skuId
 ]
 
 /**

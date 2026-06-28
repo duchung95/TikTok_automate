@@ -23,4 +23,5 @@ export interface OrderItem {
   productName: string
   mainImageUrl?: string[]
   style: string
+  skuId: string
 }

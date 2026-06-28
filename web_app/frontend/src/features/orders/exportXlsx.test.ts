@@ -34,6 +34,7 @@ function makeItem(overrides: Partial<OrderItem> = {}): OrderItem {
     isPartialLock:  false,
     productName:    'Hoodie',
     style:          'comfort_c1717',
+    skuId:          'SKU-001',
     ...overrides,
   }
 }

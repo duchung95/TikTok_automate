@@ -373,6 +373,7 @@ const makeItem = (overrides: Partial<OrderItem> = {}): OrderItem => ({
   isPartialLock: false,
   productName:   'T-Shirt',
   style: 'comfort_c1717',
+  skuId: 'SKU-001',
   ...overrides,
 })
 

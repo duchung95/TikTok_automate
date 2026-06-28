@@ -107,7 +107,9 @@ export const parseCsvRows = (
         isPartialLock: false,
         productName:   (row['Product Name'] ?? '').trim(),
         mainImageUrl:   imageMapping[productName] ?? [],
-        style
+        style,
+        skuId: (row['SKU ID'] ?? '').trim(),
+
       }
     })
     .sort((a, b) => parseDate(b.orderDate).getTime() - parseDate(a.orderDate).getTime())
