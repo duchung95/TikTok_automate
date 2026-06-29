@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react'
 import Papa from 'papaparse'
-import { parseCsvRows } from './csvParser'
+import { parseCsvRows, mapVariant } from './csvParser'
 import type { OrderItem } from './types'
 import rawMapping from '../../flashship_mapping.json';
 import listingImageMapping from '../../../scripts/listing_images.json';
@@ -80,14 +80,14 @@ export const useOrdersStore = () => {
     let newItems = [...items];
     let orderId = newItems[index].orderId;
     newItems[index] = { ...newItems[index], ...patch };
-    let variantion = newItems[index].variation;
+    let variation = newItems[index].variation;
     if (Object.keys(patch).includes('style')) {
+
+      let sub_mapping = {};
       if (patch['style'] && MAPPING[patch.style]) {
-        if (variantion && MAPPING[patch.style][variantion]) {
-          newItems[index].variantId = MAPPING[patch.style][variantion];
-        } else {
-          newItems[index].variantId = '';
-        }
+        sub_mapping = MAPPING[patch.style];
+        const { fixedVariation, variantId } = mapVariant(variation, sub_mapping, COLOR_FIX, SIZE_FIX);
+        newItems[index].variantId = variantId;
       } else {
         newItems[index].variantId = '';
       }

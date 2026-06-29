@@ -76,7 +76,7 @@ export const parseCsvRows = (
         .trimEnd();
       let style = '';
       let sub_mapping = {};
-      if (productName.includes('Comfort Colors')) {
+      if (productName.includes('Comfort Colors') || productName.includes('Comfort colors')) {
         sub_mapping = mapping['comfort_c1717'];
         style = 'comfort_c1717';
       }
