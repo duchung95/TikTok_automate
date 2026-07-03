@@ -7,7 +7,8 @@ import DesignsPage from './features/designs/DesignsPage'
 import { ColorVariantTable } from './features/color_variants/ColorVariantTable'
 import { SettingsPage } from './features/settings/SettingsPage'
 import { GoogleAuthProvider, useGoogleAuth } from './features/orders/GoogleAuthContext'
-import { APP_VERSION } from './config'
+import { APP_VERSION } from './config';
+import { DesignProvider } from './features/designs/useDesignStore'
 
 const NAV_ITEMS = [
   { path: '/orders',   label: 'Orders',   icon: IconPackage  },
@@ -70,7 +71,9 @@ function AppContent() {
 export function App() {
   return (
     <GoogleAuthProvider>
-      <AppContent />
+      <DesignProvider>
+        <AppContent />
+      </DesignProvider>
     </GoogleAuthProvider>
   )
 }

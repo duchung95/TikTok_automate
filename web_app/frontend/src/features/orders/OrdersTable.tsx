@@ -35,7 +35,7 @@ export const getRowStatus = (item: OrderItem): RowStatus => {
   if (!item.designFront.trim() && !item.designBack.trim()) return 'needs-design'
   if (!item.mockupFront.trim() && !item.mockupBack.trim()) return 'needs-mockup'
   return 'ready'
-}
+};
 
 const STATUS_SORT_ORDER: Record<RowStatus, number> = {
   locked:             0,
@@ -519,7 +519,7 @@ export const OrdersTable = ({ items, checked, onToggleChecked, onUpdateItem }: O
   if (items.length === 0) return null
 
   return (
-    <Box style={{ overflowX: 'auto' }}>
+    <Box style={{ overflowX: 'auto', maxHeight: 'calc(100vh - 250px)' }}>
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
         <thead>
           {table.getHeaderGroups().map(hg => (

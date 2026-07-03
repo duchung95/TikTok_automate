@@ -1,11 +1,12 @@
 import { useEffect, useState, useMemo } from 'react';
-import { Title, Text, Stack, ActionIcon, Tooltip } from '@mantine/core'
+import { Title, Text, Stack, ActionIcon, Tooltip, Button, Flex } from '@mantine/core'
 import { IconCopy, IconCheck } from '@tabler/icons-react'
 import { MantineReactTable, useMantineReactTable, MRT_ColumnDef } from 'mantine-react-table';
 
 import { fetchDesignSheet } from './designAction';
 import ImageCopyCell from './ImageCopyCell';
-
+import { useDesignContext } from './useDesignContext';
+import { useGoogleAuth } from '../orders/GoogleAuthContext';
 
 
 type DesignRow = {
@@ -22,20 +23,17 @@ type DesignRow = {
 };
 
 const DesignsPage = () => {
-  const [designs, setDesigns] = useState<any[]>([]);
-  const token = localStorage.getItem('google_access_token');
+  //const [designs, setDesigns] = useState<any[]>([]);
 
-  const fetchData = async (token: string) => {
-    const data = await fetchDesignSheet(token);
-    console.log('Fetched designs:', data);
-    setDesigns(data);
-  };
+  const { designs, isLoading, refresh, searchText, setSearchTextWithCache, fetchDesigns } = useDesignContext();
+  const { accessToken } = useGoogleAuth();
 
   useEffect(() => {
-    const tokenNew = localStorage.getItem('google_access_token');
-    if (!tokenNew) return;
-    fetchData(tokenNew);
-  }, []);
+    fetchDesigns();
+  }, [accessToken]);
+
+  const token = localStorage.getItem('google_access_token');
+  const [showGlobalFilter, setShowGlobalFilter] = useState(true);
 
   const data = useMemo<DesignRow[]>(() => designs.map((item: any) => ({
     productName: item.productName ?? '',
@@ -110,21 +108,36 @@ const DesignsPage = () => {
   const table = useMantineReactTable({
     columns,
     data,
-    mantinePaginationProps: { showRowsPerPage: false },
+    mantinePaginationProps: { showRowsPerPage: true },
     enableStickyHeader: true,
     initialState: {
-      pagination: { pageSize: 10, pageIndex: 0 },
+      pagination: { pageSize: 20, pageIndex: 0 },
     },
+    state: {
+      //pagination: { pageSize: 50, pageIndex: 0 },
+      globalFilter: searchText,
+      showGlobalFilter: showGlobalFilter
+    },
+    onGlobalFilterChange: setSearchTextWithCache,
+    onShowGlobalFilterChange: setShowGlobalFilter,
     paginationDisplayMode: 'pages',
     positionGlobalFilter: 'right',
-    mantineTableContainerProps: { style: { overflowX: 'auto', maxWidth: '100%' } },
+    enablePagination: true,
+    enableRowVirtualization: false,
+    mantineTableContainerProps: { 
+      style: { overflowX: 'auto', maxWidth: '100%', maxHeight: 'calc(100vh - 250px)' },
+
+    },
     mantineTableHeadCellProps: { style: { textAlign: 'left' } },
     mantineTableBodyCellProps: { style: { textAlign: 'left', verticalAlign: 'top' } },
   });
 
   return (
     <Stack style={{ overflow: 'hidden' }}>
-      <Title order={2}>Design Library</Title>
+      <Flex justify="space-between" align="center">
+        <Title order={2}>Design Library</Title>
+        <Button onClick={refresh} loading={isLoading} size='sm'>Refresh</Button>
+      </Flex>
       {!token && <Text c="red">Xin hãy đăng nhập vào Google để sử dụng tính năng này.</Text>}
       <MantineReactTable table={table} />
     </Stack>
