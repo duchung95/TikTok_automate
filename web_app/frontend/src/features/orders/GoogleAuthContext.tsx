@@ -88,6 +88,7 @@ export const GoogleAuthProvider = ({ children }: { children: ReactNode }) => {
     setError(null);
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(EXPIRES_KEY);
+    localStorage.removeItem('design_cache'); // Clear cached designs on sign out
   };
 
   return (

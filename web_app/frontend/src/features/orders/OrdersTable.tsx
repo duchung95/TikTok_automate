@@ -35,7 +35,7 @@ export const getRowStatus = (item: OrderItem): RowStatus => {
   if (!item.designFront.trim() && !item.designBack.trim()) return 'needs-design'
   if (!item.mockupFront.trim() && !item.mockupBack.trim()) return 'needs-mockup'
   return 'ready'
-}
+};
 
 const STATUS_SORT_ORDER: Record<RowStatus, number> = {
   locked:             0,
@@ -143,9 +143,9 @@ const RETRY_DELAY_MS = 800
  * `key={thumbUrl-attempt}` forces a fresh <img> element on every retry,
  * clearing any cached failure state in the browser.
  */
-const GdriveImage = ({ href, fileId, publicThumbnailUrl, label, ignore, onShowModal }: {
+export const GdriveImage = ({ href, fileId, publicThumbnailUrl, label, ignore, onShowModal, thumbnailOnly }: {
   href: string; fileId: string; publicThumbnailUrl: string; label: string;
-  ignore: boolean; onShowModal: () => void;
+  ignore: boolean; onShowModal: () => void; thumbnailOnly?: boolean
 }) => {
   const { signedIn, accessToken } = useGoogleAuth()
   const [imgUrl, setImgUrl] = useState<string | null>(null)
@@ -156,7 +156,7 @@ const GdriveImage = ({ href, fileId, publicThumbnailUrl, label, ignore, onShowMo
   useEffect(() => {
     let revoked = false
     let objectUrl: string | null = null
-    if (signedIn && fileId && accessToken) {
+    if (signedIn && fileId && accessToken && !thumbnailOnly) {
       setLoading(true)
       setError(false)
       fetch(
@@ -177,8 +177,32 @@ const GdriveImage = ({ href, fileId, publicThumbnailUrl, label, ignore, onShowMo
         revoked = true
         if (objectUrl) URL.revokeObjectURL(objectUrl)
       }
-    } else if (ignore && publicThumbnailUrl) {
-      setImgUrl(publicThumbnailUrl)
+    } else if (ignore) {
+      setImgUrl(publicThumbnailUrl);
+    } else if (thumbnailOnly) {
+      //setImgUrl(publicThumbnailUrl)
+      //https://www.googleapis.com/drive/v3/files/${fileId}?fields=thumbnailLink
+      setLoading(true)
+      setError(false)
+      fetch(
+        `https://www.googleapis.com/drive/v3/files/${fileId}?fields=thumbnailLink`,
+        { headers: { Authorization: `Bearer ${accessToken}` } }
+      )
+        .then(res => {
+          if (!res.ok) throw new Error('Không tải được ảnh')
+          return res.json()
+        })
+        .then(data => {
+          if (data.thumbnailLink) {
+            setImgUrl(data.thumbnailLink)
+          }
+        })
+        .catch(() => { if (!revoked) setError(true) })
+        .finally(() => { if (!revoked) setLoading(false) })
+      return () => {
+        revoked = true
+        if (objectUrl) URL.revokeObjectURL(objectUrl)
+      }
     } else {
       setImgUrl(null)
     }
@@ -212,7 +236,7 @@ const GdriveImage = ({ href, fileId, publicThumbnailUrl, label, ignore, onShowMo
         title={label}
         centered
         size="65vw"
-        styles={{ body: { height: '65vh', display: 'flex', flexDirection: 'column' } }}
+        styles={{ body: { height: '65vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f0f4f8' } }}
       >
         <Stack gap="md" align="center" style={{ flex: 1, justifyContent: 'center' }}>
           <img
@@ -519,7 +543,7 @@ export const OrdersTable = ({ items, checked, onToggleChecked, onUpdateItem }: O
   if (items.length === 0) return null
 
   return (
-    <Box style={{ overflowX: 'auto' }}>
+    <Box style={{ overflowX: 'auto', maxHeight: 'calc(100vh - 250px)' }}>
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
         <thead>
           {table.getHeaderGroups().map(hg => (
