@@ -32,6 +32,7 @@ const ImageCopyCell = ({ imageUrl, linkUrl }: { imageUrl: string; linkUrl: strin
           label=""
           ignore={false}
           onShowModal={() => {}}
+          thumbnailOnly={true}
         />
       )}
       {linkUrl && (

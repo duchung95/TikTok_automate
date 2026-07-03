@@ -74,12 +74,15 @@ export const ColorVariantTable = () => {
     enableStickyHeader: true,
     initialState: { 
       pagination: { 
-        pageSize: 10, // Default number of rows per page
+        pageSize: 50, // Default number of rows per page
         pageIndex: 0  // Starts on the first page
       }, 
     },
     paginationDisplayMode: 'pages',
-    positionGlobalFilter: 'right'
+    positionGlobalFilter: 'right',
+    mantineTableContainerProps: { 
+      style: { overflowX: 'auto', maxWidth: '100%', maxHeight: 'calc(100vh - 250px)' },
+    },
   });
   return (
     <div style={{height: '90vh', overflow: 'auto'}}>

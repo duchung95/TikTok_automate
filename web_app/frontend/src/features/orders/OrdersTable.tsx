@@ -143,9 +143,9 @@ const RETRY_DELAY_MS = 800
  * `key={thumbUrl-attempt}` forces a fresh <img> element on every retry,
  * clearing any cached failure state in the browser.
  */
-export const GdriveImage = ({ href, fileId, publicThumbnailUrl, label, ignore, onShowModal }: {
+export const GdriveImage = ({ href, fileId, publicThumbnailUrl, label, ignore, onShowModal, thumbnailOnly }: {
   href: string; fileId: string; publicThumbnailUrl: string; label: string;
-  ignore: boolean; onShowModal: () => void;
+  ignore: boolean; onShowModal: () => void; thumbnailOnly?: boolean
 }) => {
   const { signedIn, accessToken } = useGoogleAuth()
   const [imgUrl, setImgUrl] = useState<string | null>(null)
@@ -156,7 +156,7 @@ export const GdriveImage = ({ href, fileId, publicThumbnailUrl, label, ignore, o
   useEffect(() => {
     let revoked = false
     let objectUrl: string | null = null
-    if (signedIn && fileId && accessToken) {
+    if (signedIn && fileId && accessToken && !thumbnailOnly) {
       setLoading(true)
       setError(false)
       fetch(
@@ -177,8 +177,32 @@ export const GdriveImage = ({ href, fileId, publicThumbnailUrl, label, ignore, o
         revoked = true
         if (objectUrl) URL.revokeObjectURL(objectUrl)
       }
-    } else if (ignore && publicThumbnailUrl) {
-      setImgUrl(publicThumbnailUrl)
+    } else if (ignore) {
+      setImgUrl(publicThumbnailUrl);
+    } else if (thumbnailOnly) {
+      //setImgUrl(publicThumbnailUrl)
+      //https://www.googleapis.com/drive/v3/files/${fileId}?fields=thumbnailLink
+      setLoading(true)
+      setError(false)
+      fetch(
+        `https://www.googleapis.com/drive/v3/files/${fileId}?fields=thumbnailLink`,
+        { headers: { Authorization: `Bearer ${accessToken}` } }
+      )
+        .then(res => {
+          if (!res.ok) throw new Error('Không tải được ảnh')
+          return res.json()
+        })
+        .then(data => {
+          if (data.thumbnailLink) {
+            setImgUrl(data.thumbnailLink)
+          }
+        })
+        .catch(() => { if (!revoked) setError(true) })
+        .finally(() => { if (!revoked) setLoading(false) })
+      return () => {
+        revoked = true
+        if (objectUrl) URL.revokeObjectURL(objectUrl)
+      }
     } else {
       setImgUrl(null)
     }
