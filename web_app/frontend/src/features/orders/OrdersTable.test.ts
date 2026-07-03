@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import type { OrderItem } from './types'
-import { getRowStatus } from './OrdersTable'
+import { getRowStatus } from '../../utils/utils'
 
 const makeItem = (overrides: Partial<OrderItem> = {}): OrderItem => ({
   isSelected: true,

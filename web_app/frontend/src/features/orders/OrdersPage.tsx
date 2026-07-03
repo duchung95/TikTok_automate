@@ -2,11 +2,12 @@ import { useRef, useState } from 'react'
 import { Stack, Group, Button, Alert, Text, Tooltip, Modal } from '@mantine/core'
 import { IconUpload, IconAlertCircle, IconArrowDown, IconDownload } from '@tabler/icons-react'
 import { useOrdersStore } from './useOrdersStore'
-import { OrdersTable, getRowStatus } from './OrdersTable'
+import { OrdersTable } from './OrdersTable'
 import { exportToXlsx, getPartialExportViolations } from './exportXlsx'
 import { showNotification } from '@mantine/notifications'
-import { useGoogleAuth } from './GoogleAuthContext'
-import { appendToSheet } from './googleSheetExport'
+import { useGoogleAuth } from './useGoogleContext';
+import { appendToSheet } from './googleSheetExport';
+import { getRowStatus } from '../../utils/utils'
 
 /**
  * Orders page component

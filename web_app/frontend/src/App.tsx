@@ -6,7 +6,8 @@ import { OrdersPage } from './features/orders/OrdersPage'
 import { DesignsPage } from './features/designs/DesignsPage'
 import { ColorVariantTable } from './features/color_variants/ColorVariantTable'
 import { SettingsPage } from './features/settings/SettingsPage'
-import { GoogleAuthProvider, useGoogleAuth } from './features/orders/GoogleAuthContext'
+import { GoogleAuthProvider } from './features/orders/GoogleAuthContext';
+import { useGoogleAuth } from './features/orders/useGoogleContext'
 import { APP_VERSION } from './config'
 
 const NAV_ITEMS = [

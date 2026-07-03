@@ -13,10 +13,12 @@ import type { OrderItem } from './types'
 import { extractGdriveId, gdriveThumbnailUrl } from './gdriveUtils'
 import { Modal, Button } from '@mantine/core'
 import { useGoogleLogin } from '@react-oauth/google'
-import { useGoogleAuth } from './GoogleAuthContext'
+import { useGoogleAuth } from './useGoogleContext';
 import { isRowReady } from './csvParser'
 import { DriveUploadButton } from './DriveUploadButton'
-import { Row } from 'exceljs'
+import { Row } from 'exceljs';
+
+import { getRowStatus } from '../../utils/utils'
 
 interface OrdersTableProps {
   items: OrderItem[]
@@ -26,16 +28,6 @@ interface OrdersTableProps {
 }
 
 type RowStatus = 'locked' | 'partial' | 'needs-link-label' | 'needs-design' | 'needs-mockup' | 'ready'
-
-export const getRowStatus = (item: OrderItem): RowStatus => {
-  if (!item.variantId) return 'locked'
-  if (!item.variantId && !item.isPartialLock) return 'locked'
-  if (item.isPartialLock) return 'partial'
-  if (!item.linkLabel.trim()) return 'needs-link-label'
-  if (!item.designFront.trim() && !item.designBack.trim()) return 'needs-design'
-  if (!item.mockupFront.trim() && !item.mockupBack.trim()) return 'needs-mockup'
-  return 'ready'
-}
 
 const STATUS_SORT_ORDER: Record<RowStatus, number> = {
   locked:             0,
