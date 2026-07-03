@@ -236,7 +236,7 @@ export const GdriveImage = ({ href, fileId, publicThumbnailUrl, label, ignore, o
         title={label}
         centered
         size="65vw"
-        styles={{ body: { height: '65vh', display: 'flex', flexDirection: 'column' } }}
+        styles={{ body: { height: '65vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f0f4f8' } }}
       >
         <Stack gap="md" align="center" style={{ flex: 1, justifyContent: 'center' }}>
           <img

@@ -130,6 +130,9 @@ const DesignsPage = () => {
     },
     mantineTableHeadCellProps: { style: { textAlign: 'left' } },
     mantineTableBodyCellProps: { style: { textAlign: 'left', verticalAlign: 'top' } },
+    mantineTableProps: {
+      style: { backgroundColor: '#f0f4f8' },
+    },
   });
 
   return (
