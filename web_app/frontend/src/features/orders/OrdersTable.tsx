@@ -143,7 +143,7 @@ const RETRY_DELAY_MS = 800
  * `key={thumbUrl-attempt}` forces a fresh <img> element on every retry,
  * clearing any cached failure state in the browser.
  */
-const GdriveImage = ({ href, fileId, publicThumbnailUrl, label, ignore, onShowModal }: {
+export const GdriveImage = ({ href, fileId, publicThumbnailUrl, label, ignore, onShowModal }: {
   href: string; fileId: string; publicThumbnailUrl: string; label: string;
   ignore: boolean; onShowModal: () => void;
 }) => {
