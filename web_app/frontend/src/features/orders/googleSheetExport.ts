@@ -1,6 +1,7 @@
 import type { OrderItem } from './types'
 import { buildFlashshipRow, FLASHSHIP_COLUMNS } from './exportXlsx'
 import { GOOGLE_SHEET_FULLFILL_ID, GOOGLE_SHEET_DESIGN_ID, GOOGLE_SHEET_DESIGN_SHEET_NAME } from '../../config'
+import { fetchDesignSheet } from '../designs/designAction'
 
 const SHEET_ID = GOOGLE_SHEET_FULLFILL_ID
 const SHEET_NAME = 'Sheet1'
@@ -186,18 +187,19 @@ const overwriteRows = async (token: string, items: OrderItem[], existingIds: Set
 
 // ── Design sheet helpers ─────────────────────────────────────────────────────
 
-/** Reads existing product names (col A) from the design sheet to avoid duplicates */
+/** Reads existing product names and SKU id from the design sheet to avoid duplicates */
 const fetchExistingDesignNames = async (token: string): Promise<Set<string>> => {
   if (!DESIGN_SHEET_ID) return new Set()
-  const range = encodeURIComponent(`${DESIGN_SHEET_NAME}!A:A`)
-  const res = await fetch(`${GSHEET_API}/${DESIGN_SHEET_ID}/values/${range}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  })
-  if (!res.ok) return new Set()
-  const data = await res.json()
-  const rows: string[][] = data.values ?? []
-  // Skip header row
-  return new Set(rows.slice(1).map(r => r[0] ?? '').filter(Boolean))
+  const result = await fetchDesignSheet(token);
+  const data = [];
+  if (result && result.length) {
+    for (const row of result) {
+      let productNameAndSKU = `${row['productName']} - ${row['sku']}`;
+      data.push(productNameAndSKU);
+    }
+  }
+  const existingNames = new Set(data.map(r => r ?? '').filter(Boolean));
+  return existingNames;
 }
 
 /**
@@ -229,12 +231,12 @@ export const saveToDesignSheet = async (items: OrderItem[], token: string): Prom
   const existingNames = await fetchExistingDesignNames(token)
   const seen = new Set<string>()
   const newDesigns = items.filter(item => {
-    if (!item.productName) return false
-    if (!item.designFront && !item.designBack) return false
-    if (existingNames.has(item.productName)) return false
-    if (seen.has(item.productName)) return false
-    seen.add(item.productName)
-    return true
+    if (!item.productName) return false;
+    if (!item.designFront && !item.designBack) return false;
+    if (existingNames.has(`${item.productName} - ${item.skuId}`)) return false;
+    if (seen.has(item.productName)) return false;
+    seen.add(item.productName);
+    return true;
   })
 
   if (newDesigns.length === 0) return { saved: 0 }

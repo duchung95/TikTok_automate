@@ -143,6 +143,7 @@ const RETRY_DELAY_MS = 800
  * `key={thumbUrl-attempt}` forces a fresh <img> element on every retry,
  * clearing any cached failure state in the browser.
  */
+const thumbnailCache = new Map<string, string>(); // This is how we saved and cache images in disk
 export const GdriveImage = ({ href, fileId, publicThumbnailUrl, label, ignore, onShowModal, thumbnailOnly }: {
   href: string; fileId: string; publicThumbnailUrl: string; label: string;
   ignore: boolean; onShowModal: () => void; thumbnailOnly?: boolean
@@ -157,8 +158,15 @@ export const GdriveImage = ({ href, fileId, publicThumbnailUrl, label, ignore, o
     let revoked = false
     let objectUrl: string | null = null
     if (signedIn && fileId && accessToken && !thumbnailOnly) {
-      setLoading(true)
-      setError(false)
+      setLoading(true);
+      setError(false);
+      const cached = thumbnailCache.get(fileId);
+      if (cached) { 
+        setLoading(false);
+        setError(false);
+        setImgUrl(cached); 
+        return; 
+      }
       fetch(
         `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
         { headers: { Authorization: `Bearer ${accessToken}` } }
@@ -169,7 +177,11 @@ export const GdriveImage = ({ href, fileId, publicThumbnailUrl, label, ignore, o
         })
         .then(blob => {
           objectUrl = URL.createObjectURL(blob)
-          if (!revoked) setImgUrl(objectUrl)
+          if (!revoked) {
+            thumbnailCache.set(fileId, objectUrl);
+            setImgUrl(objectUrl);
+            objectUrl = null // cached — do not revoke on unmount
+          }
         })
         .catch(() => { if (!revoked) setError(true) })
         .finally(() => { if (!revoked) setLoading(false) })
@@ -179,11 +191,19 @@ export const GdriveImage = ({ href, fileId, publicThumbnailUrl, label, ignore, o
       }
     } else if (ignore) {
       setImgUrl(publicThumbnailUrl);
-    } else if (thumbnailOnly) {
+    } else if (thumbnailOnly && signedIn && accessToken) {
       //setImgUrl(publicThumbnailUrl)
       //https://www.googleapis.com/drive/v3/files/${fileId}?fields=thumbnailLink
-      setLoading(true)
-      setError(false)
+      setLoading(true);
+      setError(false);
+      let fileidThumbnail = `${fileId}-thumbnail`;
+      const cached = thumbnailCache.get(fileidThumbnail);
+      if (cached) { 
+        setLoading(false);
+        setError(false);
+        setImgUrl(cached); 
+        return; 
+      }
       fetch(
         `https://www.googleapis.com/drive/v3/files/${fileId}?fields=thumbnailLink`,
         { headers: { Authorization: `Bearer ${accessToken}` } }
@@ -194,19 +214,16 @@ export const GdriveImage = ({ href, fileId, publicThumbnailUrl, label, ignore, o
         })
         .then(data => {
           if (data.thumbnailLink) {
-            setImgUrl(data.thumbnailLink)
+            thumbnailCache.set(fileidThumbnail, data.thumbnailLink);
+            setImgUrl(data.thumbnailLink);
           }
         })
         .catch(() => { if (!revoked) setError(true) })
         .finally(() => { if (!revoked) setLoading(false) })
-      return () => {
-        revoked = true
-        if (objectUrl) URL.revokeObjectURL(objectUrl)
-      }
     } else {
       setImgUrl(null)
     }
-  }, [fileId, ignore, signedIn, accessToken])
+  }, [fileId, ignore, signedIn, accessToken, thumbnailOnly]);
 
   const handlePreviewClick = () => {
     if (!signedIn && !ignore) {

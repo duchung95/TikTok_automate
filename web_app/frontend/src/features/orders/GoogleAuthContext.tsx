@@ -48,9 +48,17 @@ export const GoogleAuthProvider = ({ children }: { children: ReactNode }) => {
     if (!accessToken) return;
     const expiresAt = Number(localStorage.getItem(EXPIRES_KEY));
     if (!expiresAt) return;
+    if (expiresAt < Date.now()) {
+      setAccessToken(null);
+      setError('Google token expired');
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(EXPIRES_KEY);
+      localStorage.removeItem('design_cache');
+    }
     const timeout = setTimeout(() => {
       setAccessToken(null);
       setError('Google token expired');
+      localStorage.removeItem('design_cache');
     }, expiresAt - Date.now());
     return () => clearTimeout(timeout);
   }, [accessToken]);
@@ -75,6 +83,7 @@ export const GoogleAuthProvider = ({ children }: { children: ReactNode }) => {
       setAccessToken(null);
       localStorage.removeItem(TOKEN_KEY);
       localStorage.removeItem(EXPIRES_KEY);
+      localStorage.removeItem('design_cache');
     },
     scope: 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file',
   });

@@ -111,7 +111,7 @@ const DesignsPage = () => {
     mantinePaginationProps: { showRowsPerPage: true },
     enableStickyHeader: true,
     initialState: {
-      pagination: { pageSize: 20, pageIndex: 0 },
+      pagination: { pageSize: 10, pageIndex: 0 },
     },
     state: {
       //pagination: { pageSize: 50, pageIndex: 0 },
