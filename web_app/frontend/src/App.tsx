@@ -1,30 +1,33 @@
-import { AppShell, NavLink, Text, Group, Badge, Button, Burger } from '@mantine/core'
-import { useDisclosure } from '@mantine/hooks'
-import { IconPackage, IconPhoto, IconSettings, IconColorPicker } from '@tabler/icons-react'
-import { Routes, Route, useNavigate, useLocation } from 'react-router-dom'
-import { OrdersPage } from './features/orders/OrdersPage'
-import DesignsPage from './features/designs/DesignsPage'
-import { ColorVariantTable } from './features/color_variants/ColorVariantTable'
-import { SettingsPage } from './features/settings/SettingsPage'
-import { GoogleAuthProvider, useGoogleAuth } from './features/orders/GoogleAuthContext'
+import { AppShell, NavLink, Text, Group, Badge, Button, Burger } from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
+import { IconPackage, IconPhoto, IconSettings, IconColorPicker, IconShoppingCartX } from '@tabler/icons-react';
+import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
+import { OrdersPage } from './features/orders/OrdersPage';
+import DesignsPage from './features/designs/DesignsPage';
+import { ColorVariantTable } from './features/color_variants/ColorVariantTable';
+import { SettingsPage } from './features/settings/SettingsPage';
+import { GoogleAuthProvider } from './features/context/google_context/GoogleAuthContext';
+import { useGoogleAuth } from './features/context/google_context/useGoogleAuth';
 import { APP_VERSION } from './config';
-import { DesignProvider } from './features/designs/useDesignStore'
+import { DesignProvider } from './features/designs/useDesignStore';
+import FindUnfullfillComponent from './features/find_unfullfill/FindUnfullfillComponent';
 
 const NAV_ITEMS = [
   { path: '/orders',   label: 'Orders',   icon: IconPackage  },
   { path: '/color-variants', label: 'Colors', icon: IconColorPicker },
   { path: '/designs',  label: 'Designs',  icon: IconPhoto    },
+  { path: '/find-unfulfilled', label: 'Chưa fulfill', icon: IconShoppingCartX },
   { path: '/settings', label: 'Settings', icon: IconSettings },
 ];
-function AppContent() {
+const AppContent = () => {
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const { signedIn, signIn, signOut } = useGoogleAuth()
-  const [opened, { toggle }] = useDisclosure()
+  const [opened, { toggle }] = useDisclosure();
 
   return (
     <AppShell
-      navbar={{ width: 140, breakpoint: 'sm', collapsed: { mobile: !opened } }}
+      navbar={{ width: 160, breakpoint: 'sm', collapsed: { mobile: !opened } }}
       padding="md"
       header={{ height: 52 }}
     >
@@ -50,7 +53,7 @@ function AppContent() {
             label={label}
             leftSection={<Icon size={18} />}
             active={pathname === path || (pathname === '/' && path === '/orders')}
-            onClick={() => navigate(path)}
+            onClick={() => {navigate(path); toggle();}}
           />
         ))}
       </AppShell.Navbar>
@@ -62,6 +65,7 @@ function AppContent() {
           <Route path="/designs" element={<DesignsPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/color-variants" element={<ColorVariantTable />} />
+          <Route path="/find-unfulfilled" element={<FindUnfullfillComponent />} />
         </Routes>
       </AppShell.Main>
     </AppShell>

@@ -14,23 +14,36 @@ const COLOR_FIX: Record<string, string> = raw.color_fix ?? {};
 const SIZE_FIX: Record<string, string>  = raw.size_fix  ?? {};
 
 const LOCAL_STORAGE_KEY = "ordersPageState";
+const UNFULFILLED_LOCAL_STORAGE_KEY = "unfulfilledOrders";
 type CheckedState = Record<string, boolean>;  // row index → checked
 
-export const useOrdersStore = () => {
+type useOrdersStoreProps = {
+  findUnfulfilledOrders?: boolean | undefined;
+  alreadyFullfilledOrders?: string[];
+};
+
+export const useOrdersStore = (props?: useOrdersStoreProps) => {
+  const localStorageKey = props?.findUnfulfilledOrders ? UNFULFILLED_LOCAL_STORAGE_KEY : LOCAL_STORAGE_KEY;
+
   // Restore from localStorage if available
   const getInitialItems = (): OrderItem[] => {
-    const saved = localStorage.getItem(LOCAL_STORAGE_KEY)
+    const saved = localStorage.getItem(localStorageKey)
     if (saved) {
       try {
         let parsed = JSON.parse(saved);
-        parsed = parsed.items.sort((a: any, b: any) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime())
+        if (props?.findUnfulfilledOrders) {
+          parsed = parsed.items.sort((a: any, b: any) => new Date(a.orderDate).getTime() - new Date(b.orderDate).getTime());
+        } else {
+          parsed = parsed.items.sort((a: any, b: any) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime());
+        }
+        
         return parsed || []
       } catch {}
     }
     return []
   }
   const getInitialChecked = (): CheckedState => {
-    const saved = localStorage.getItem(LOCAL_STORAGE_KEY)
+    const saved = localStorage.getItem(localStorageKey)
     if (saved) {
       try {
         const parsed = JSON.parse(saved)
@@ -48,10 +61,10 @@ export const useOrdersStore = () => {
   // Persist to localStorage on change
   useEffect(() => {
     localStorage.setItem(
-      LOCAL_STORAGE_KEY,
+      localStorageKey,
       JSON.stringify({ items, checked })
     )
-  }, [items, checked])
+  }, [items, checked]);
 
   const importCsv = useCallback(async (file: File) => {
     setIsLoading(true)
@@ -62,9 +75,14 @@ export const useOrdersStore = () => {
         header: true,
         skipEmptyLines: true,
       })
-      let parsed = parseCsvRows(data, MAPPING, COLOR_FIX, SIZE_FIX, imageMapping);
-      // Sort by orderDate descending (newest first).
-      parsed = parsed.sort((a, b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime())
+      let parsed = parseCsvRows(data, MAPPING, COLOR_FIX, SIZE_FIX, imageMapping, props?.findUnfulfilledOrders);
+      // Sort by orderDate descending (newest first) if this is not to find unfullfilled item.
+      if (props?.findUnfulfilledOrders) {
+        parsed = parsed.sort((a, b) => new Date(a.orderDate).getTime() - new Date(b.orderDate).getTime())
+      } else {
+        parsed = parsed.sort((a, b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime())
+      }
+      
       setItems(parsed)
       setChecked({})
       // items and checked will be persisted by useEffect
@@ -75,10 +93,17 @@ export const useOrdersStore = () => {
     }
   }, []);
 
-  const updateItem = (index: number, patch: Partial<OrderItem>) => {
+  const updateItem = (rowIndex: number, patch: Partial<OrderItem>, rowOrderId?: string) => {
     //setItems(prev => prev.map((item, i) => i === index ? { ...item, ...patch } : item));
     let newItems = [...items];
-    let orderId = newItems[index].orderId;
+    let index = rowIndex;
+    
+
+    let orderId = newItems[index]?.orderId;
+    if (rowOrderId && rowOrderId !== orderId) {
+      alert(`Order ID mismatch: ${rowOrderId} !== ${orderId}`);
+      return;
+    }
     newItems[index] = { ...newItems[index], ...patch };
     let variation = newItems[index].variation;
     if (Object.keys(patch).includes('style')) {
@@ -109,15 +134,21 @@ export const useOrdersStore = () => {
     setChecked(prev => ({ ...prev, [rowKey]: !prev[rowKey] }))
   }, [])
 
-  const selectAll = useCallback(() => {
-    const next: CheckedState = {}
-    items.forEach((item, i) => {
-      if (item.variantId && !item.isPartialLock) next[String(i)] = true
+  const selectAll = () => {
+    const newItems: OrderItem[] = structuredClone(items);
+    newItems.forEach((item, i) => {
+      item.isSelected = true;
     })
-    setChecked(next)
-  }, [items])
+    setItems(newItems);
+  };
 
-  const clearAll = useCallback(() => setChecked({}), [])
+  const clearAll = () => {
+    const newItems: OrderItem[] = structuredClone(items);
+    newItems.forEach((item, i) => {
+      item.isSelected = false;
+    })
+    setItems(newItems);
+  };
 
   const checkedItems = items.filter((_, i) => checked[String(i)])
 

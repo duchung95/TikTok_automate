@@ -1,16 +1,17 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 // useGoogleLogin must be called at the top level of the provider so that the login function is stable and can be used by any consumer.
-import { useGoogleLogin } from '@react-oauth/google'
+import { useGoogleLogin } from '@react-oauth/google';
+import { GoogleAuthContext } from './useGoogleAuth';
 
-interface GoogleAuthContextType {
-  signedIn: boolean
-  accessToken: string | null
-  error: string | null
-  signIn: () => void
-  signOut: () => void
-}
+// interface GoogleAuthContextType {
+//   signedIn: boolean
+//   accessToken: string | null
+//   error: string | null
+//   signIn: () => void
+//   signOut: () => void
+// }
 
-const GoogleAuthContext = createContext<GoogleAuthContextType | undefined>(undefined);
+// const GoogleAuthContext = createContext<GoogleAuthContextType | undefined>(undefined);
 
 const TOKEN_KEY = 'google_access_token';
 const EXPIRES_KEY = 'google_expires_at';
@@ -49,18 +50,29 @@ export const GoogleAuthProvider = ({ children }: { children: ReactNode }) => {
     const expiresAt = Number(localStorage.getItem(EXPIRES_KEY));
     if (!expiresAt) return;
     if (expiresAt < Date.now()) {
-      setAccessToken(null);
-      setError('Google token expired');
-      localStorage.removeItem(TOKEN_KEY);
-      localStorage.removeItem(EXPIRES_KEY);
-      localStorage.removeItem('design_cache');
+      signOut();
     }
+    // This will clear the cache automatically in normal operation.
+    // However, for inactive tabs, the timeout may not fire. so we add the
+    // VisibilityChange to handle that. 
     const timeout = setTimeout(() => {
-      setAccessToken(null);
-      setError('Google token expired');
-      localStorage.removeItem('design_cache');
+      signOut();
     }, expiresAt - Date.now());
-    return () => clearTimeout(timeout);
+
+    // ② visibilitychange: fires when user returns to tab after laptop sleep.
+    // Browser timers freeze during OS sleep — setTimeout alone cannot handle this.
+    // When the OS wakes and the tab becomes visible again, this re-checks expiry.
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && Date.now() >= expiresAt) {
+        signOut();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      clearTimeout(timeout);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, [accessToken]);
 
   const login = useGoogleLogin({
@@ -115,8 +127,8 @@ export const GoogleAuthProvider = ({ children }: { children: ReactNode }) => {
   );
 }
 
-export const useGoogleAuth = () => {
-  const ctx = useContext(GoogleAuthContext);
-  if (!ctx) throw new Error('useGoogleAuth must be used within a GoogleAuthProvider');
-  return ctx;
-};
+// export const useGoogleAuth = () => {
+//   const ctx = useContext(GoogleAuthContext);
+//   if (!ctx) throw new Error('useGoogleAuth must be used within a GoogleAuthProvider');
+//   return ctx;
+// };

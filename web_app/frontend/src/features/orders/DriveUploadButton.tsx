@@ -2,7 +2,7 @@ import React from 'react'
 import { useState, useRef } from 'react'
 import { Box, Tooltip, Button } from '@mantine/core'
 import { uploadFileToDrive } from './gdriveUtils'
-import { useGoogleAuth } from './GoogleAuthContext'
+import { useGoogleAuth } from "../context/google_context/useGoogleAuth";
 import { GOOGLE_DRIVE_UPLOAD_FOLDER_ID } from '../../config'
 
 interface DriveUploadButtonProps {
