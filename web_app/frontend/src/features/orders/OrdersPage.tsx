@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import { Stack, Group, Button, Alert, Text, Tooltip, Modal } from '@mantine/core'
 import { IconUpload, IconAlertCircle, IconArrowDown, IconDownload } from '@tabler/icons-react'
 import { useOrdersStore } from './useOrdersStore'
@@ -7,23 +7,58 @@ import { exportToXlsx, getPartialExportViolations } from './exportXlsx'
 import { showNotification } from '@mantine/notifications'
 import { useGoogleAuth } from './GoogleAuthContext'
 import { appendToSheet } from './googleSheetExport'
+import { fetchExistingOrderIds } from "../orders/googleSheetExport";
 
+type OrdersPageProps = {
+  findUnfulfilledOrders?: boolean;
+};
 /**
  * Orders page component
  * @returns JSX.Element
  */
-export const OrdersPage = () => {
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const [isExporting, setIsExporting] = useState(false)
-  const [exportError, setExportError] = useState<string | null>(null)
+export const OrdersPage = (props: OrdersPageProps) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+  const [fulfilledOrders, setFulfilledOrders] = useState<any>({});
+  const [csvUploadCount, setCsvUploadCount] = useState(0);
   const {
     items, checked, isLoading, error,
-    importCsv, updateItem, toggleChecked, selectAll, clearAll,
-  } = useOrdersStore()
+    importCsv, updateItem, toggleChecked, selectAll, clearAll, setItems
+  } = useOrdersStore({ findUnfulfilledOrders: props.findUnfulfilledOrders });
 
   const needsAttentionCount = items.filter(
     item => getRowStatus(item) !== 'ready'
-  ).length
+  ).length;
+
+  const { signedIn, signIn, accessToken } = useGoogleAuth();
+
+  useEffect(() => {
+    if (signedIn && accessToken && props.findUnfulfilledOrders) {
+      const getFulfilledOrders = async () => {
+        try {
+          const { ids } = await fetchExistingOrderIds(accessToken);
+          let temp: Record<string, boolean> = {};
+          ids.forEach(id => temp[id] = true);
+          //const unfulfilledOrders = items.filter(item => !temp[`HD - ${item.orderId}`]);
+          //setItems(unfulfilledOrders);
+          setFulfilledOrders(temp);
+        } catch (error: any) {
+          console.error("Error fetching fulfilled orders:", error);
+          setExportError(`Error fetching fulfilled orders: ${ error?.message ? error.message : 'Unknown error'}`);
+        }
+      };
+
+      getFulfilledOrders();
+    }
+  }, [signedIn, accessToken, csvUploadCount]);
+
+  useEffect(() => {
+    if (fulfilledOrders) {
+      const unfulfilledOrders = items.filter(item => !fulfilledOrders[`HD - ${item.orderId}`]);
+      setItems(unfulfilledOrders);
+    }
+  }, [fulfilledOrders]);
 
   const selectedItems: Record<string, number> = {};
   items.forEach((item, i) => {
@@ -37,8 +72,6 @@ export const OrdersPage = () => {
     Object.entries(checked).filter(([, v]) => v).map(([k]) => Number(k))
   )
 
-  // Google Sheets export state
-  const { signedIn, signIn, accessToken } = useGoogleAuth()
   const [exportingToSheet, setExportingToSheet] = useState(false)
   const [duplicateModal, setDuplicateModal] = useState<null | { duplicateOrderIds: string[], onAction: (action: 'skip' | 'overwrite' | 'cancel') => void }>(null);
   const invalidSelectedItems = () => {
@@ -108,7 +141,10 @@ export const OrdersPage = () => {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (file) importCsv(file)
+    if (file){
+      importCsv(file);
+      if (props.findUnfulfilledOrders) setCsvUploadCount(c => c + 1)  // ← trigger filter
+    } 
     e.target.value = ''
   }
 
@@ -122,6 +158,12 @@ export const OrdersPage = () => {
     } finally {
       setIsExporting(false)
     }
+  };
+
+  if (props.findUnfulfilledOrders && Object.keys(fulfilledOrders).length === 0) {
+    return (
+      <Text size="sm">Vui lòng đăng nhập lại. Không tìm thấy order đã fullfilled.</Text>
+    );
   }
 
   return (
@@ -213,27 +255,27 @@ export const OrdersPage = () => {
             </Button>
           </Tooltip>
         </Group>
-      {/* Duplicate orders modal for Google Sheets export */}
-      <Modal
-        opened={!!duplicateModal}
-        onClose={() => {setDuplicateModal(null); setExportingToSheet(false)}}
-        title="Đơn hàng trùng lặp"
-        centered
-      >
-        <div>
+        {/* Duplicate orders modal for Google Sheets export */}
+        <Modal
+          opened={!!duplicateModal}
+          onClose={() => {setDuplicateModal(null); setExportingToSheet(false)}}
+          title="Đơn hàng trùng lặp"
+          centered
+        >
           <div>
-            {`Có ${duplicateModal?.duplicateOrderIds.length ?? 0} đơn hàng đã tồn tại trên Google Sheet.`}
-            {duplicateModal?.duplicateOrderIds.length && duplicateModal?.duplicateOrderIds.length > 0 && duplicateModal?.duplicateOrderIds.map((id) => (
-              <Text size="sm" c="dimmed">{`Đơn hàng: ${id}`}</Text>
-            ))}
+            <div>
+              {`Có ${duplicateModal?.duplicateOrderIds.length ?? 0} đơn hàng đã tồn tại trên Google Sheet.`}
+              {duplicateModal?.duplicateOrderIds.length && duplicateModal?.duplicateOrderIds.length > 0 && duplicateModal?.duplicateOrderIds.map((id) => (
+                <Text size="sm" c="dimmed">{`Đơn hàng: ${id}`}</Text>
+              ))}
+            </div>
+            <div style={{ marginTop: 16, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <Button onClick={() => duplicateModal?.onAction('skip')} color="yellow">Bỏ qua</Button>
+              <Button onClick={() => duplicateModal?.onAction('overwrite')} color="red">Ghi đè</Button>
+              <Button onClick={() => duplicateModal?.onAction('cancel')} variant="default">Huỷ</Button>
+            </div>
           </div>
-          <div style={{ marginTop: 16, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <Button onClick={() => duplicateModal?.onAction('skip')} color="yellow">Bỏ qua</Button>
-            <Button onClick={() => duplicateModal?.onAction('overwrite')} color="red">Ghi đè</Button>
-            <Button onClick={() => duplicateModal?.onAction('cancel')} variant="default">Huỷ</Button>
-          </div>
-        </div>
-      </Modal>
+        </Modal>
       </Group>
 
       {error && (
@@ -251,6 +293,7 @@ export const OrdersPage = () => {
         checked={checked}
         onToggleChecked={toggleChecked}
         onUpdateItem={updateItem}
+        findUnfulfilledOrders={props.findUnfulfilledOrders}
       />
     </Stack>
   )

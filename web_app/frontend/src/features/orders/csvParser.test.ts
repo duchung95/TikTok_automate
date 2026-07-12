@@ -67,6 +67,10 @@ describe('shouldSkipRow', () => {
     expect(shouldSkipRow(makeRow({ 'Order Status': 'Cancelled' }))).toBe(true)
   })
 
+  it('skips Canceled status', () => {
+    expect(shouldSkipRow(makeRow({ 'Order Status': 'Canceled' }))).toBe(true)
+  })
+
   it('skips Seller Cancel status', () => {
     expect(shouldSkipRow(makeRow({ 'Order Status': 'Seller Cancel' }))).toBe(true)
   })
@@ -202,7 +206,7 @@ describe('mapVariant', () => {
     })
   })
 
-  it('applies size_fix in 3-part format', () => {
+  it('applies size_fix in 3-part format with size in middle', () => {
     const mapping = { 'Pepper, 2XL': '790503' }
     expect(mapVariant('Golden Retriever, XXL, Pepper', mapping, MOCK_COLOR_FIX, MOCK_SIZE_FIX)).toEqual({
       fixedVariation: 'Pepper, 2XL',
@@ -212,8 +216,40 @@ describe('mapVariant', () => {
 
   it('returns empty variantId for unknown color in 3-part format', () => {
     expect(mapVariant('Golden Retriever, M, UnknownColor', MOCK_MAPPING)).toEqual({
-      fixedVariation: 'UnknownColor, M',
+      fixedVariation: 'Golden Retriever, M',
       variantId: '',
+    })
+  });
+
+  it('applies color_fix in 3-part format with size at the end 1', () => {
+    const mapping = { 'Pepper, M': '201' }
+    expect(mapVariant('Golden Retriever, Pepper, M', mapping, MOCK_COLOR_FIX, MOCK_SIZE_FIX)).toEqual({
+      fixedVariation: 'Pepper, M',
+      variantId: '201',
+    })
+  })
+
+  it('applies color_fix in 3-part format with size at the end 2', () => {
+    const mapping = { 'Pepper, 2XL': '201' }
+    expect(mapVariant('Golden Retriever, Pepper, 2XL', mapping, MOCK_COLOR_FIX, MOCK_SIZE_FIX)).toEqual({
+      fixedVariation: 'Pepper, 2XL',
+      variantId: '201',
+    })
+  })
+
+  it('applies color_fix in 3-part format with color at start and map size', () => {
+    const mapping = { 'Pepper, 2XL': '201' }
+    expect(mapVariant('Pepper, 2XL, Golden Retriever', mapping, MOCK_COLOR_FIX, MOCK_SIZE_FIX)).toEqual({
+      fixedVariation: 'Pepper, 2XL',
+      variantId: '201',
+    })
+  })
+
+  it('applies color_fix in 3-part format with color at start', () => {
+    const mapping = { 'Pepper, M': '201' }
+    expect(mapVariant('Pepper, M, Golden Retriever', mapping, MOCK_COLOR_FIX, MOCK_SIZE_FIX)).toEqual({
+      fixedVariation: 'Pepper, M',
+      variantId: '201',
     })
   })
 })
@@ -345,6 +381,102 @@ describe('parseCsvRows', () => {
     expect(result.map((r: OrderItem) => r.orderId)).toEqual(['ORD-001'])
     expect(result.map((r: OrderItem) => r.mainImageUrl)).toEqual([['https://example.com/tshirt.jpg', 'https://example.com/tshirt2.jpg']])
   });
+
+  it('exclude orders that has shipped', () => {
+    const rows = [
+      makeRow({ 'Order ID': 'ORD-001', 'Created Time': '01/10/2026 9:00:00 AM', 'Order Status': 'Shipped' }),
+    ]
+    const result = parseCsvRows(rows, PARSE_CSV_MOCK_MAPPING, {}, {}, {})
+    expect(result.map((r: OrderItem) => r.orderId)).toEqual([])
+  })
+
+  it('include orders that is waiting to ship', () => {
+    const rows = [
+      makeRow({ 'Order ID': 'ORD-001', 'Created Time': '01/10/2026 9:00:00 AM', 'Order Status': 'To ship' }),
+    ]
+    const result = parseCsvRows(rows, PARSE_CSV_MOCK_MAPPING, {}, {}, {})
+    expect(result.map((r: OrderItem) => r.orderId)).toEqual(['ORD-001'])
+  })
+
+  it('exclude all orders older than 7 days', () => {
+    const rows = [
+      makeRow({ 'Order ID': 'ORD-001', 'Created Time': '01/10/2026 9:00:00 AM' }),
+      makeRow({ 'Order ID': 'ORD-002', 'Created Time': '03/15/2026 9:00:00 AM' }),
+      makeRow({ 'Order ID': 'ORD-003', 'Created Time': '02/01/2026 9:00:00 AM' }),
+    ]
+    const result = parseCsvRows(rows, PARSE_CSV_MOCK_MAPPING, {}, {}, {}, true)
+    expect(result.map((r: OrderItem) => r.orderId)).toEqual([])
+  })
+
+  it('has one order within 7 days', () => {
+
+    const today = new Date();
+    const mm = String(today.getMonth() + 1).padStart(2, '0'); // January is 0!
+    const dd = String(today.getDate()).padStart(2, '0');
+    const yyyy = today.getFullYear();
+
+    const formattedDate = `${mm}/${dd}/${yyyy} 12:00:00 PM`;
+    const rows = [
+      makeRow({ 'Order ID': 'ORD-001', 'Created Time': formattedDate }),
+      makeRow({ 'Order ID': 'ORD-002', 'Created Time': '03/15/2026 9:00:00 AM' }),
+      makeRow({ 'Order ID': 'ORD-003', 'Created Time': '02/01/2026 9:00:00 AM' }),
+    ]
+    const result = parseCsvRows(rows, PARSE_CSV_MOCK_MAPPING, {}, {}, {}, true)
+    expect(result.map((r: OrderItem) => r.orderId)).toEqual(['ORD-001'])
+  })
+
+  it('has one order within 7 days but has shipped so no order', () => {
+
+    const today = new Date();
+    const mm = String(today.getMonth() + 1).padStart(2, '0'); // January is 0!
+    const dd = String(today.getDate()).padStart(2, '0');
+    const yyyy = today.getFullYear();
+
+    const formattedDate = `${mm}/${dd}/${yyyy} 12:00:00 PM`;
+    const rows = [
+      makeRow({ 'Order ID': 'ORD-001', 'Created Time': formattedDate, 'Order Status': 'Shipped' }),
+      makeRow({ 'Order ID': 'ORD-002', 'Created Time': '03/15/2026 9:00:00 AM' }),
+      makeRow({ 'Order ID': 'ORD-003', 'Created Time': '02/01/2026 9:00:00 AM' }),
+    ]
+    const result = parseCsvRows(rows, PARSE_CSV_MOCK_MAPPING, {}, {}, {}, true)
+    expect(result.map((r: OrderItem) => r.orderId)).toEqual([])
+  })
+
+  it('has one order within 7 days but has canceled so no order', () => {
+
+    const today = new Date();
+    const mm = String(today.getMonth() + 1).padStart(2, '0'); // January is 0!
+    const dd = String(today.getDate()).padStart(2, '0');
+    const yyyy = today.getFullYear();
+
+    const formattedDate = `${mm}/${dd}/${yyyy} 12:00:00 PM`;
+    const rows = [
+      makeRow({ 'Order ID': 'ORD-001', 'Created Time': formattedDate, 'Order Status': 'Canceled' }),
+      makeRow({ 'Order ID': 'ORD-002', 'Created Time': '03/15/2026 9:00:00 AM' }),
+      makeRow({ 'Order ID': 'ORD-003', 'Created Time': '02/01/2026 9:00:00 AM' }),
+    ]
+    const result = parseCsvRows(rows, PARSE_CSV_MOCK_MAPPING, {}, {}, {}, true)
+    expect(result.map((r: OrderItem) => r.orderId)).toEqual([])
+  })
+
+  it('has one order within 7 days but one order to ship', () => {
+
+    const today = new Date();
+    const mm = String(today.getMonth() + 1).padStart(2, '0'); // January is 0!
+    const dd = String(today.getDate()).padStart(2, '0');
+    const yyyy = today.getFullYear();
+
+    const formattedDate = `${mm}/${dd}/${yyyy} 12:00:00 PM`;
+    const rows = [
+      makeRow({ 'Order ID': 'ORD-001', 'Created Time': formattedDate, 'Order Status': 'Canceled' }),
+      makeRow({ 'Order ID': 'ORD-002', 'Created Time': formattedDate, 'Order Status': 'Shipped' }),
+      makeRow({ 'Order ID': 'ORD-003', 'Created Time': formattedDate, 'Order Status': 'To ship' }),
+    ]
+    const result = parseCsvRows(rows, PARSE_CSV_MOCK_MAPPING, {}, {}, {}, true)
+    expect(result.map((r: OrderItem) => r.orderId)).toEqual(['ORD-003'])
+  })
+
+  
 });
 
 // ── isRowReady ────────────────────────────────────────────────────────────────

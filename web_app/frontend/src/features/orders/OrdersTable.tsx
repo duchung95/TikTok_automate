@@ -4,11 +4,12 @@ import {
   getCoreRowModel,
   getSortedRowModel,
   flexRender,
+  getPaginationRowModel,
   type ColumnDef,
   type SortingState,
 } from '@tanstack/react-table'
 import { useState, useMemo, useRef, useEffect } from 'react'
-import { Checkbox, Badge, Text, Box, Stack, Group, TextInput, Tooltip, Loader, Select } from '@mantine/core'
+import { Checkbox, Badge, Text, Box, Stack, Group, TextInput, Tooltip, Loader, Select, Pagination } from '@mantine/core'
 import type { OrderItem } from './types'
 import { extractGdriveId, gdriveThumbnailUrl } from './gdriveUtils'
 import { Modal, Button } from '@mantine/core'
@@ -21,8 +22,9 @@ import { Row } from 'exceljs'
 interface OrdersTableProps {
   items: OrderItem[]
   checked: Record<string, boolean>
+  findUnfulfilledOrders?: boolean | undefined;
   onToggleChecked: (rowKey: string) => void
-  onUpdateItem: (index: number, patch: Partial<OrderItem>) => void
+  onUpdateItem: (rowIndex: number, patch: Partial<OrderItem>, rowOrderId?: string) => void
 }
 
 type RowStatus = 'locked' | 'partial' | 'needs-link-label' | 'needs-design' | 'needs-mockup' | 'ready'
@@ -416,9 +418,6 @@ const VariantIdInput = ({ value, onChange }: UVariantIdInputProps) => {
     <TextInput
       size="xs"
       styles={{ input: { fontSize: '11px', height: 24, minHeight: 24 } }}
-      // onChange={e => setValueInput(e.currentTarget.value)}
-      // value={valueInput as string}
-      // onBlur={e => onUpdateItem(row.original.originalIndex, { variantId: valueInput })}
       value={value}
       onChange={e => onChange(e.currentTarget.value)}
       style={{ width: 180, flexShrink: 0 }}
@@ -426,7 +425,7 @@ const VariantIdInput = ({ value, onChange }: UVariantIdInputProps) => {
   )
 }
 
-export const OrdersTable = ({ items, checked, onToggleChecked, onUpdateItem }: OrdersTableProps) => {
+export const OrdersTable = ({ items, checked, onToggleChecked, onUpdateItem, findUnfulfilledOrders }: OrdersTableProps) => {
   const [sorting, setSorting] = useState<SortingState>([])
 
   // Frozen sort order — only recomputed when a new CSV is imported (items.length changes).
@@ -446,6 +445,11 @@ export const OrdersTable = ({ items, checked, onToggleChecked, onUpdateItem }: O
     [items]
   );
 
+  const [pagination, setPagination] = useState({
+    pageIndex: 0, //initial page index
+    pageSize: 20, //default page size
+  });
+
   const styleSelectOptions = [
     { value: 'comfort_c1717', label: 'Comfort Colors - C1717' },
     { value: 'gildan_g5000', label: 'Gildan - G5000' },
@@ -464,7 +468,7 @@ export const OrdersTable = ({ items, checked, onToggleChecked, onUpdateItem }: O
             checked={isSelected}
             disabled={isLocked}
             onChange={() => {
-              onUpdateItem(row.original.originalIndex, { isSelected: !isSelected });
+              onUpdateItem(row.original.originalIndex, { isSelected: !isSelected }, findUnfulfilledOrders ? row.original.orderId : undefined);
             }}
           />
         )
@@ -506,7 +510,7 @@ export const OrdersTable = ({ items, checked, onToggleChecked, onUpdateItem }: O
             size="xs"
             data={styleSelectOptions}
             value={value}
-            onChange={(_value, option) => onUpdateItem(row.original.originalIndex, { style: option?.value })}
+            onChange={(_value, option) => onUpdateItem(row.original.originalIndex, { style: option?.value }, findUnfulfilledOrders ? row.original.orderId : undefined)}
           />
         )
       },
@@ -525,7 +529,7 @@ export const OrdersTable = ({ items, checked, onToggleChecked, onUpdateItem }: O
             styles={{ input: { fontSize: '11px', height: 24, minHeight: 24 } }}
             onChange={e => setValueInput(e.currentTarget.value)}
             value={valueInput as string}
-            onBlur={e => onUpdateItem(row.original.originalIndex, { variantId: valueInput })}
+            onBlur={e => onUpdateItem(row.original.originalIndex, { variantId: valueInput }, findUnfulfilledOrders ? row.original.orderId : undefined)}
             style={{ width: 90, flexShrink: 0 }}
           />
         )
@@ -551,97 +555,108 @@ export const OrdersTable = ({ items, checked, onToggleChecked, onUpdateItem }: O
   const table = useReactTable({
     data,
     columns,
-    state: { sorting },
+    state: { sorting, pagination },
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
   });
 
-  if (items.length === 0) return null
+  if (items.length === 0) {
+    let message = findUnfulfilledOrders ? "Tất cả đơn trong file này đã được hoàn thành." : "Không có đơn hàng nào để hiển thị cho file này.";
+    return <Text size="sm" c="blue" >{message}</Text>
+  }
 
   return (
-    <Box style={{ overflowX: 'auto', maxHeight: 'calc(100vh - 250px)' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-        <thead>
-          {table.getHeaderGroups().map(hg => (
-            <tr key={hg.id} style={{ borderBottom: '2px solid var(--mantine-color-gray-3)' }}>
-              {hg.headers.map(header => (
-                <th
-                  key={header.id}
-                  style={{
-                    padding: '6px 8px',
-                    textAlign: 'left',
-                    width: header.getSize(),
-                    whiteSpace: 'nowrap',
-                    fontSize: '11px',
-                    fontWeight: 600,
-                    background: 'var(--mantine-color-gray-0)',
-                  }}
-                >
-                  {flexRender(header.column.columnDef.header, header.getContext())}
-                </th>
-              ))}
-            </tr>
-          ))}
-        </thead>
-        <tbody>
-          {(() => {
-            const orderColorMap = buildOrderColorMap(items)
-            return table.getRowModel().rows.map(row => {
-              const status = getRowStatus(row.original)
-              const bg = getRowBg(row.original, orderColorMap)
-              return (
-                <React.Fragment key={row.id}>
-                  {/* Row 1 — order info */}
-                  <tr
-                    key={`${row.id}-info`}
-                    style={{ background: bg, borderBottom: '1px solid var(--mantine-color-gray-2)' }}
+    <div>
+      <Box style={{ overflowX: 'auto', maxHeight: 'calc(100vh - 300px)' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            {table.getHeaderGroups().map(hg => (
+              <tr key={hg.id} style={{ borderBottom: '2px solid var(--mantine-color-gray-3)' }}>
+                {hg.headers.map(header => (
+                  <th
+                    key={header.id}
+                    style={{
+                      padding: '6px 8px',
+                      textAlign: 'left',
+                      width: header.getSize(),
+                      whiteSpace: 'nowrap',
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      background: 'var(--mantine-color-gray-0)',
+                    }}
                   >
-                    {row.getVisibleCells().map(cell => (
-                      <td key={cell.column.id} style={{ padding: '5px 8px 3px', fontSize: '11px' }}>
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    {flexRender(header.column.columnDef.header, header.getContext())}
+                  </th>
+                ))}
+              </tr>
+            ))}
+          </thead>
+          <tbody>
+            {(() => {
+              const orderColorMap = buildOrderColorMap(items)
+              return table.getRowModel().rows.map(row => {
+                const status = getRowStatus(row.original)
+                const bg = getRowBg(row.original, orderColorMap)
+                return (
+                  <React.Fragment key={row.id}>
+                    {/* Row 1 — order info */}
+                    <tr
+                      key={`${row.id}-info`}
+                      style={{ background: bg, borderBottom: '1px solid var(--mantine-color-gray-2)' }}
+                    >
+                      {row.getVisibleCells().map(cell => (
+                        <td key={cell.column.id} style={{ padding: '5px 8px 3px', fontSize: '11px' }}>
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </td>
+                      ))}
+                    </tr>
+                    {/* Row 2 — link label + design/mockup URL inputs with image previews */}
+                    <tr
+                      key={`${row.id}-design`}
+                      style={{ background: bg, borderBottom: '2px solid var(--mantine-color-gray-3)' }}
+                    >
+                      <td />
+                      <td>
+                        { row?.original?.mainImageUrl?.length && row?.original?.mainImageUrl?.length > 0 ? (
+                          <MainImagePreview images={row.original.mainImageUrl ?? []} alt={row.original.productName} />
+                        ) : (
+                          <span>No Image Available</span>
+                        )}
                       </td>
-                    ))}
-                  </tr>
-                  {/* Row 2 — link label + design/mockup URL inputs with image previews */}
-                  <tr
-                    key={`${row.id}-design`}
-                    style={{ background: bg, borderBottom: '2px solid var(--mantine-color-gray-3)' }}
-                  >
-                    <td />
-                    <td>
-                      { row?.original?.mainImageUrl?.length && row?.original?.mainImageUrl?.length > 0 ? (
-                        <MainImagePreview images={row.original.mainImageUrl ?? []} alt={row.original.productName} />
-                      ) : (
-                        <span>No Image Available</span>
-                      )}
-                    </td>
 
-                    <td colSpan={8} style={{ padding: '4px 8px 10px' }}>
-                      <Stack gap={8}>
-                        {/* Link Label */}
-                        <UrlField
-                          label="Link Label"
-                          value={row.original.linkLabel}
-                          showPreview={false}
-                          onChange={val => onUpdateItem(row.original.originalIndex, { linkLabel: val })}
-                        />
-                        {/* All 4 design/mockup fields on one row */}
-                        <UrlQuad items={[
-                          { label: 'Design Front', value: row.original.designFront, onChange: (val: string) => onUpdateItem(row.original.originalIndex, { designFront: val }) },
-                          { label: 'Design Back',  value: row.original.designBack,  onChange: (val: string) => onUpdateItem(row.original.originalIndex, { designBack:  val }) },
-                          { label: 'Mockup Front', value: row.original.mockupFront, onChange: (val: string) => onUpdateItem(row.original.originalIndex, { mockupFront: val }) },
-                          { label: 'Mockup Back',  value: row.original.mockupBack,  onChange: (val: string) => onUpdateItem(row.original.originalIndex, { mockupBack:  val }) },
-                        ]} />
-                      </Stack>
-                    </td>
-                  </tr>
-                </React.Fragment>
-              )
-            })
-          })()}
-        </tbody>
-      </table>
-    </Box>
+                      <td colSpan={8} style={{ padding: '4px 8px 10px' }}>
+                        <Stack gap={8}>
+                          {/* Link Label */}
+                          <UrlField
+                            label="Link Label"
+                            value={row.original.linkLabel}
+                            showPreview={false}
+                            onChange={val => onUpdateItem(row.original.originalIndex, { linkLabel: val }, findUnfulfilledOrders ? row.original.orderId : undefined)}
+                          />
+                          {/* All 4 design/mockup fields on one row */}
+                          <UrlQuad items={[
+                            { label: 'Design Front', value: row.original.designFront, onChange: (val: string) => onUpdateItem(row.original.originalIndex, { designFront: val }, findUnfulfilledOrders ? row.original.orderId : undefined) },
+                            { label: 'Design Back',  value: row.original.designBack,  onChange: (val: string) => onUpdateItem(row.original.originalIndex, { designBack:  val }, findUnfulfilledOrders ? row.original.orderId : undefined) },
+                            { label: 'Mockup Front', value: row.original.mockupFront, onChange: (val: string) => onUpdateItem(row.original.originalIndex, { mockupFront: val }, findUnfulfilledOrders ? row.original.orderId : undefined) },
+                            { label: 'Mockup Back',  value: row.original.mockupBack,  onChange: (val: string) => onUpdateItem(row.original.originalIndex, { mockupBack:  val }, findUnfulfilledOrders ? row.original.orderId : undefined) },
+                          ]} />
+                        </Stack>
+                      </td>
+                    </tr>
+                  </React.Fragment>
+                )
+              })
+            })()}
+          </tbody>
+        </table>
+        
+      </Box>
+      <Pagination
+        total={Math.ceil(items.length / pagination.pageSize)}
+        onChange={page => setPagination({ ...pagination, pageIndex: page - 1 })}
+      />
+    </div>
   )
 }

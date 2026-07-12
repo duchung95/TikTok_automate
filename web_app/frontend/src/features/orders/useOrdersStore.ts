@@ -14,12 +14,20 @@ const COLOR_FIX: Record<string, string> = raw.color_fix ?? {};
 const SIZE_FIX: Record<string, string>  = raw.size_fix  ?? {};
 
 const LOCAL_STORAGE_KEY = "ordersPageState";
+const UNFULFILLED_LOCAL_STORAGE_KEY = "unfulfilledOrders";
 type CheckedState = Record<string, boolean>;  // row index → checked
 
-export const useOrdersStore = () => {
+type useOrdersStoreProps = {
+  findUnfulfilledOrders?: boolean | undefined;
+  alreadyFullfilledOrders?: string[];
+};
+
+export const useOrdersStore = (props?: useOrdersStoreProps) => {
+  const localStorageKey = props?.findUnfulfilledOrders ? UNFULFILLED_LOCAL_STORAGE_KEY : LOCAL_STORAGE_KEY;
+
   // Restore from localStorage if available
   const getInitialItems = (): OrderItem[] => {
-    const saved = localStorage.getItem(LOCAL_STORAGE_KEY)
+    const saved = localStorage.getItem(localStorageKey)
     if (saved) {
       try {
         let parsed = JSON.parse(saved);
@@ -30,7 +38,7 @@ export const useOrdersStore = () => {
     return []
   }
   const getInitialChecked = (): CheckedState => {
-    const saved = localStorage.getItem(LOCAL_STORAGE_KEY)
+    const saved = localStorage.getItem(localStorageKey)
     if (saved) {
       try {
         const parsed = JSON.parse(saved)
@@ -48,7 +56,7 @@ export const useOrdersStore = () => {
   // Persist to localStorage on change
   useEffect(() => {
     localStorage.setItem(
-      LOCAL_STORAGE_KEY,
+      localStorageKey,
       JSON.stringify({ items, checked })
     )
   }, [items, checked])
@@ -62,7 +70,7 @@ export const useOrdersStore = () => {
         header: true,
         skipEmptyLines: true,
       })
-      let parsed = parseCsvRows(data, MAPPING, COLOR_FIX, SIZE_FIX, imageMapping);
+      let parsed = parseCsvRows(data, MAPPING, COLOR_FIX, SIZE_FIX, imageMapping, props?.findUnfulfilledOrders);
       // Sort by orderDate descending (newest first).
       parsed = parsed.sort((a, b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime())
       setItems(parsed)
@@ -75,10 +83,15 @@ export const useOrdersStore = () => {
     }
   }, []);
 
-  const updateItem = (index: number, patch: Partial<OrderItem>) => {
+  const updateItem = (rowIndex: number, patch: Partial<OrderItem>, rowOrderId?: string) => {
     //setItems(prev => prev.map((item, i) => i === index ? { ...item, ...patch } : item));
     let newItems = [...items];
-    let orderId = newItems[index].orderId;
+    let index = rowIndex;
+    if (rowOrderId) {
+      index = newItems.findIndex((item: OrderItem) => item.orderId === rowOrderId);
+    }
+
+    let orderId = newItems[index]?.orderId;
     newItems[index] = { ...newItems[index], ...patch };
     let variation = newItems[index].variation;
     if (Object.keys(patch).includes('style')) {

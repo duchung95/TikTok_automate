@@ -73,7 +73,7 @@ export const isSignedIn = (): boolean => {
 
 // ── Sheet helpers ────────────────────────────────────────────────────────────
 
-const fetchExistingOrderIds = async (token: string): Promise<{ ids: Set<string>; totalRows: number }> => {
+export const fetchExistingOrderIds = async (token: string): Promise<{ ids: Set<string>; totalRows: number }> => {
   // Read only the Order ID column (column A) to minimise data transfer
   const range = encodeURIComponent(`${SHEET_NAME}!A:A`)
   const res = await fetch(`${GSHEET_API}/${SHEET_ID}/values/${range}`, {
