@@ -31,7 +31,12 @@ export const useOrdersStore = (props?: useOrdersStoreProps) => {
     if (saved) {
       try {
         let parsed = JSON.parse(saved);
-        parsed = parsed.items.sort((a: any, b: any) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime())
+        if (props?.findUnfulfilledOrders) {
+          parsed = parsed.items.sort((a: any, b: any) => new Date(a.orderDate).getTime() - new Date(b.orderDate).getTime());
+        } else {
+          parsed = parsed.items.sort((a: any, b: any) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime());
+        }
+        
         return parsed || []
       } catch {}
     }
@@ -59,7 +64,7 @@ export const useOrdersStore = (props?: useOrdersStoreProps) => {
       localStorageKey,
       JSON.stringify({ items, checked })
     )
-  }, [items, checked])
+  }, [items, checked]);
 
   const importCsv = useCallback(async (file: File) => {
     setIsLoading(true)
@@ -71,8 +76,13 @@ export const useOrdersStore = (props?: useOrdersStoreProps) => {
         skipEmptyLines: true,
       })
       let parsed = parseCsvRows(data, MAPPING, COLOR_FIX, SIZE_FIX, imageMapping, props?.findUnfulfilledOrders);
-      // Sort by orderDate descending (newest first).
-      parsed = parsed.sort((a, b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime())
+      // Sort by orderDate descending (newest first) if this is not to find unfullfilled item.
+      if (props?.findUnfulfilledOrders) {
+        parsed = parsed.sort((a, b) => new Date(a.orderDate).getTime() - new Date(b.orderDate).getTime())
+      } else {
+        parsed = parsed.sort((a, b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime())
+      }
+      
       setItems(parsed)
       setChecked({})
       // items and checked will be persisted by useEffect
@@ -87,11 +97,13 @@ export const useOrdersStore = (props?: useOrdersStoreProps) => {
     //setItems(prev => prev.map((item, i) => i === index ? { ...item, ...patch } : item));
     let newItems = [...items];
     let index = rowIndex;
-    if (rowOrderId) {
-      index = newItems.findIndex((item: OrderItem) => item.orderId === rowOrderId);
-    }
+    
 
     let orderId = newItems[index]?.orderId;
+    if (rowOrderId && rowOrderId !== orderId) {
+      alert(`Order ID mismatch: ${rowOrderId} !== ${orderId}`);
+      return;
+    }
     newItems[index] = { ...newItems[index], ...patch };
     let variation = newItems[index].variation;
     if (Object.keys(patch).includes('style')) {
@@ -122,15 +134,21 @@ export const useOrdersStore = (props?: useOrdersStoreProps) => {
     setChecked(prev => ({ ...prev, [rowKey]: !prev[rowKey] }))
   }, [])
 
-  const selectAll = useCallback(() => {
-    const next: CheckedState = {}
-    items.forEach((item, i) => {
-      if (item.variantId && !item.isPartialLock) next[String(i)] = true
+  const selectAll = () => {
+    const newItems: OrderItem[] = structuredClone(items);
+    newItems.forEach((item, i) => {
+      item.isSelected = true;
     })
-    setChecked(next)
-  }, [items])
+    setItems(newItems);
+  };
 
-  const clearAll = useCallback(() => setChecked({}), [])
+  const clearAll = () => {
+    const newItems: OrderItem[] = structuredClone(items);
+    newItems.forEach((item, i) => {
+      item.isSelected = false;
+    })
+    setItems(newItems);
+  };
 
   const checkedItems = items.filter((_, i) => checked[String(i)])
 

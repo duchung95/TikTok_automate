@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect } from 'react'
 import { Stack, Group, Button, Alert, Text, Tooltip, Modal } from '@mantine/core'
-import { IconUpload, IconAlertCircle, IconArrowDown, IconDownload } from '@tabler/icons-react'
+import { IconUpload, IconAlertCircle, IconArrowDown, IconDownload, IconRefresh } from '@tabler/icons-react'
 import { useOrdersStore } from './useOrdersStore'
 import { OrdersTable } from './OrdersTable'
 import { getRowStatus } from '../utils/utils'
@@ -23,6 +23,8 @@ export const OrdersPage = (props: OrdersPageProps) => {
   const [exportError, setExportError] = useState<string | null>(null);
   const [fulfilledOrders, setFulfilledOrders] = useState<any>({});
   const [csvUploadCount, setCsvUploadCount] = useState(0);
+  const [isFetchingFulfilled, setIsFetchingFulfilled] = useState(false);
+  const [checkedCount, setCheckedCount] = useState(0);
   const {
     items, checked, isLoading, error,
     importCsv, updateItem, toggleChecked, selectAll, clearAll, setItems
@@ -34,24 +36,26 @@ export const OrdersPage = (props: OrdersPageProps) => {
 
   const { signedIn, signIn, accessToken } = useGoogleAuth();
 
-  useEffect(() => {
+  const getFulfilledOrders = async () => {
     if (signedIn && accessToken && props.findUnfulfilledOrders) {
-      const getFulfilledOrders = async () => {
-        try {
-          const { ids } = await fetchExistingOrderIds(accessToken);
-          let temp: Record<string, boolean> = {};
-          ids.forEach(id => temp[id] = true);
-          //const unfulfilledOrders = items.filter(item => !temp[`HD - ${item.orderId}`]);
-          //setItems(unfulfilledOrders);
-          setFulfilledOrders(temp);
-        } catch (error: any) {
-          console.error("Error fetching fulfilled orders:", error);
-          setExportError(`Error fetching fulfilled orders: ${ error?.message ? error.message : 'Unknown error'}`);
-        }
-      };
-
-      getFulfilledOrders();
+      try {
+        setIsFetchingFulfilled(true);
+        const { ids } = await fetchExistingOrderIds(accessToken);
+        let temp: Record<string, boolean> = {};
+        ids.forEach(id => temp[id] = true);
+        setFulfilledOrders(temp);
+        setIsFetchingFulfilled(false);
+        setExportError(null);
+      } catch (error: any) {
+        console.error("Error fetching fulfilled orders:", error);
+        setIsFetchingFulfilled(false);
+        setExportError(`Error fetching fulfilled orders: ${ error?.message ? error.message : 'Unknown error'}`);
+      }
     }
+  };
+
+  useEffect(() => {
+    getFulfilledOrders();
   }, [signedIn, accessToken, csvUploadCount]);
 
   useEffect(() => {
@@ -62,13 +66,22 @@ export const OrdersPage = (props: OrdersPageProps) => {
   }, [fulfilledOrders]);
 
   const selectedItems: Record<string, number> = {};
-  items.forEach((item, i) => {
-    if (item.isSelected) {
-      selectedItems[item.orderId] = 1;
-    }
-  });
-  //const checkedCount = Object.values(checked).filter(Boolean).length
-  const checkedCount = Object.keys(selectedItems).length;
+  useEffect(() => {
+    let checkedCountTemp = 0;
+    items.forEach((item, i) => {
+      if (item.isSelected) {
+        selectedItems[item.orderId] = 1;
+        checkedCountTemp++;
+      }
+    });
+    setCheckedCount(checkedCountTemp);
+  }, [items]);
+  // items.forEach((item, i) => {
+  //   if (item.isSelected) {
+  //     selectedItems[item.orderId] = 1;
+  //   }
+  // });
+  // const checkedCount = Object.keys(selectedItems).length;
   const checkedIndices = new Set(
     Object.entries(checked).filter(([, v]) => v).map(([k]) => Number(k))
   )
@@ -84,10 +97,11 @@ export const OrdersPage = (props: OrdersPageProps) => {
       return true;
     }
     return false;
-  }
+  };
 
   // Handles exporting selected orders to Google Sheet (separate from Excel export)
   const handleSaveToGoogleSheet = async () => {
+    if (!checkedAllItemSelected()) return;
     setExportError(null);
     setIsExporting(false);
     if (!signedIn) {
@@ -147,9 +161,26 @@ export const OrdersPage = (props: OrdersPageProps) => {
       if (props.findUnfulfilledOrders) setCsvUploadCount(c => c + 1)  // ← trigger filter
     } 
     e.target.value = ''
+  };
+
+  // Check if all items are selected, if not, confirm with the user
+  const checkedAllItemSelected = () => {
+    if (checkedCount < items.length) {
+      let unselectedOrderIds: string[] = [];
+      items.forEach((item, i) => {
+        if (!item.isSelected) {
+          unselectedOrderIds.push(item.orderId);
+        }
+      });
+      if (!confirm("Có một số đơn hàng chưa được chọn. Bạn có muốn tiếp tục xuất file chỉ với các đơn hàng đã chọn không?\n Đơn hàng chưa chọn: \n" + unselectedOrderIds.join(", "))) {
+        return false;
+      }
+    }
+    return true;
   }
 
   const handleExport = async () => {
+    if (!checkedAllItemSelected()) return;
     setExportError(null);
     const invalidItems = invalidSelectedItems();
     if (invalidItems) return;
@@ -223,11 +254,20 @@ export const OrdersPage = (props: OrdersPageProps) => {
               <Button variant="subtle" color="gray" onClick={clearAll}>Clear</Button>
             </>
           )}
+          {props.findUnfulfilledOrders && 
+            <Button
+              leftSection={<IconRefresh size={16} />}
+              loading={isFetchingFulfilled}
+              onClick={() => getFulfilledOrders()}
+            >
+              Refetch Fullfill Sheet
+            </Button>
+          }
         </Group>
 
         <Group>
           {checkedCount > 0 && (
-            <Text size="sm" c="dimmed">{checkedCount} selected</Text>
+            <Text size="sm" c="red">{`Chọn ${checkedCount}/${items.length} đơn hàng`}</Text>
           )}
           {/* Regular Excel export button */}
           <Button
@@ -267,7 +307,7 @@ export const OrdersPage = (props: OrdersPageProps) => {
             <div>
               {`Có ${duplicateModal?.duplicateOrderIds.length ?? 0} đơn hàng đã tồn tại trên Google Sheet.`}
               {duplicateModal?.duplicateOrderIds.length && duplicateModal?.duplicateOrderIds.length > 0 && duplicateModal?.duplicateOrderIds.map((id) => (
-                <Text size="sm" c="dimmed">{`Đơn hàng: ${id}`}</Text>
+                <Text size="sm" c="dimmed" key={id}>{`Đơn hàng: ${id}`}</Text>
               ))}
             </div>
             <div style={{ marginTop: 16, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>

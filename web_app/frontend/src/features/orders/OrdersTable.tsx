@@ -419,14 +419,14 @@ export const OrdersTable = ({ items, checked, onToggleChecked, onUpdateItem, fin
 
   // Frozen sort order — only recomputed when a new CSV is imported (items.length changes).
   // This prevents rows from jumping around while the user edits inputs.
-  const frozenOrderRef = useRef<number[]>([])
-  const prevLengthRef = useRef(-1)
+  const frozenOrderRef = useRef<number[]>([]);
+  const prevLengthRef = useRef(-1);
+  const PAGE_SIZE = 30;
 
   if (items.length !== prevLengthRef.current) {
-    prevLengthRef.current = items.length
-    const indexed = items.map((item, i) => ({ item, i }))
-    //indexed.sort((a, b) => STATUS_SORT_ORDER[getRowStatus(a.item)] - STATUS_SORT_ORDER[getRowStatus(b.item)])
-    frozenOrderRef.current = indexed.map(x => x.i)
+    prevLengthRef.current = items.length;
+    const indexed = items.map((item, i) => ({ item, i }));
+    frozenOrderRef.current = indexed.map(x => x.i);
   }
 
   const data = useMemo<RowData[]>(
@@ -436,7 +436,7 @@ export const OrdersTable = ({ items, checked, onToggleChecked, onUpdateItem, fin
 
   const [pagination, setPagination] = useState({
     pageIndex: 0, //initial page index
-    pageSize: 20, //default page size
+    pageSize: PAGE_SIZE, //default page size
   });
 
   const styleSelectOptions = [
@@ -642,10 +642,13 @@ export const OrdersTable = ({ items, checked, onToggleChecked, onUpdateItem, fin
         </table>
         
       </Box>
-      <Pagination
-        total={Math.ceil(items.length / pagination.pageSize)}
-        onChange={page => setPagination({ ...pagination, pageIndex: page - 1 })}
-      />
+      <Group justify='right'>
+        <Pagination
+          total={Math.ceil(items.length / pagination.pageSize)}
+          onChange={page => setPagination({ ...pagination, pageIndex: page - 1 })}
+        />
+      </Group>
+      
     </div>
   )
 }
