@@ -14,7 +14,7 @@ import type { OrderItem, RowStatus } from './types'
 import { extractGdriveId, gdriveThumbnailUrl } from './gdriveUtils'
 import { Modal, Button } from '@mantine/core'
 import { useGoogleLogin } from '@react-oauth/google'
-import { useGoogleAuth } from "../orders/useGoogleAuth";
+import { useGoogleAuth } from "../context/google_context/useGoogleAuth";
 import { isRowReady } from './csvParser'
 import { DriveUploadButton } from './DriveUploadButton'
 import { Row } from 'exceljs'

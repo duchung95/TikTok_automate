@@ -6,7 +6,7 @@ import { OrdersTable } from './OrdersTable'
 import { getRowStatus } from '../utils/utils'
 import { exportToXlsx, getPartialExportViolations } from './exportXlsx'
 import { showNotification } from '@mantine/notifications'
-import { useGoogleAuth } from "../orders/useGoogleAuth";
+import { useGoogleAuth } from "../context/google_context/useGoogleAuth";
 import { appendToSheet } from './googleSheetExport'
 import { fetchExistingOrderIds } from "../orders/googleSheetExport";
 
