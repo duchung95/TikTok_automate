@@ -6,7 +6,7 @@ import { MantineReactTable, useMantineReactTable, MRT_ColumnDef } from 'mantine-
 import { fetchDesignSheet } from './designAction';
 import ImageCopyCell from './ImageCopyCell';
 import { useDesignContext } from './useDesignContext';
-import { useGoogleAuth } from '../orders/GoogleAuthContext';
+import { useGoogleAuth } from '../orders/useGoogleAuth';
 
 
 type DesignRow = {

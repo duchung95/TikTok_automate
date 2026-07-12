@@ -19,7 +19,8 @@ vi.mock('@react-oauth/google', () => ({
 import React from 'react'
 import { render, act, fireEvent, waitFor, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, it, expect } from 'vitest'
-import { GoogleAuthProvider, useGoogleAuth } from './GoogleAuthContext'
+import { GoogleAuthProvider } from './GoogleAuthContext'
+import { useGoogleAuth } from './useGoogleAuth';
 import { GoogleOAuthProvider } from '@react-oauth/google'
 
 function TestConsumer() {
@@ -246,7 +247,8 @@ describe('GoogleAuthContext token expiration', () => {
       },
       GoogleOAuthProvider: ({ children }: any) => React.createElement('div', null, children),
     }));
-    const { GoogleAuthProvider, useGoogleAuth } = await import('./GoogleAuthContext');
+    const { GoogleAuthProvider } = await import('./GoogleAuthContext');
+    const {useGoogleAuth} = await import('./useGoogleAuth');
     function TestComponent() {
       const { signedIn, accessToken, signIn, signOut, error } = useGoogleAuth();
       return (

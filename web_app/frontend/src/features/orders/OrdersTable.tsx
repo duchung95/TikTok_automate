@@ -10,14 +10,15 @@ import {
 } from '@tanstack/react-table'
 import { useState, useMemo, useRef, useEffect } from 'react'
 import { Checkbox, Badge, Text, Box, Stack, Group, TextInput, Tooltip, Loader, Select, Pagination } from '@mantine/core'
-import type { OrderItem } from './types'
+import type { OrderItem, RowStatus } from './types'
 import { extractGdriveId, gdriveThumbnailUrl } from './gdriveUtils'
 import { Modal, Button } from '@mantine/core'
 import { useGoogleLogin } from '@react-oauth/google'
-import { useGoogleAuth } from './GoogleAuthContext'
+import { useGoogleAuth } from "../orders/useGoogleAuth";
 import { isRowReady } from './csvParser'
 import { DriveUploadButton } from './DriveUploadButton'
 import { Row } from 'exceljs'
+import { getRowStatus } from '../utils/utils'
 
 interface OrdersTableProps {
   items: OrderItem[]
@@ -25,18 +26,6 @@ interface OrdersTableProps {
   findUnfulfilledOrders?: boolean | undefined;
   onToggleChecked: (rowKey: string) => void
   onUpdateItem: (rowIndex: number, patch: Partial<OrderItem>, rowOrderId?: string) => void
-}
-
-type RowStatus = 'locked' | 'partial' | 'needs-link-label' | 'needs-design' | 'needs-mockup' | 'ready'
-
-export const getRowStatus = (item: OrderItem): RowStatus => {
-  if (!item.variantId) return 'locked'
-  if (!item.variantId && !item.isPartialLock) return 'locked'
-  if (item.isPartialLock) return 'partial'
-  if (!item.linkLabel.trim()) return 'needs-link-label'
-  if (!item.designFront.trim() && !item.designBack.trim()) return 'needs-design'
-  if (!item.mockupFront.trim() && !item.mockupBack.trim()) return 'needs-mockup'
-  return 'ready'
 };
 
 const STATUS_SORT_ORDER: Record<RowStatus, number> = {
@@ -46,7 +35,7 @@ const STATUS_SORT_ORDER: Record<RowStatus, number> = {
   'needs-design':     3,
   'needs-mockup':     4,
   ready:              5,
-}
+};
 
 const STATUS_BADGE: Record<RowStatus, { color: string; label: string }> = {
   locked:             { color: 'red',    label: '❌ Thiếu Variant ID'  },
@@ -545,8 +534,8 @@ export const OrdersTable = ({ items, checked, onToggleChecked, onUpdateItem, fin
       header: 'Status',
       size: 140,
       cell: ({ row }: { row: any }) => {
-        const s = getRowStatus(row.original)
-        const { color, label } = STATUS_BADGE[s]
+        const status = getRowStatus(row.original)
+        const { color, label } = STATUS_BADGE[status]
         return <Badge color={color} variant="light" size="xs">{label}</Badge>
       },
     },

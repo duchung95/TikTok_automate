@@ -24,4 +24,6 @@ export interface OrderItem {
   mainImageUrl?: string[]
   style: string
   skuId: string
-}
+};
+
+export type RowStatus = 'locked' | 'partial' | 'needs-link-label' | 'needs-design' | 'needs-mockup' | 'ready';
