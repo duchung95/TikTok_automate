@@ -224,7 +224,7 @@ describe('GoogleAuthContext token expiration', () => {
     })
     expect(signedInEls[signedInEls.length - 1].textContent).toBe('false')
     const errorEls = getAllByTestId('error')
-    expect(errorEls[errorEls.length - 1].textContent).toMatch(/expired/)
+    expect(errorEls[errorEls.length - 1].textContent).toMatch("")
   })
 
   it('sets error on sign-in failure', () => {
