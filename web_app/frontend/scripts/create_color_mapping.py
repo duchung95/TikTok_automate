@@ -130,14 +130,15 @@ COLOR_CODE_MAP = {
     "TWEED_GD": "Tweed",
     "VIOLET_GD": "Violet",
     "YELLOWHAZE_GD": "Yellow Haze",
-    #gildan G18500 variant for sweatshirt 
+    #gildan G18000 variant for sweatshirt and G18500 for hoodie
     "HEATHERDARKGREEN_GD": "Heather Dark Green",
     "HEATHERDARKMAROON_GD": "Heather Dark Maroon",
     "HEATHERDARKNAVY_GD": "Heather Dark Navy",
     "HEATHERDEEPROYAL_GD": "Heather Deep Royal",
     "HEATHERSCARLETRED_GD": "Heather Scarlet Red",
     "ORCHID_GD": "Orchid",
-    "ROYAL_GD": "Royal"
+    "ROYAL_GD": "Royal",
+    "CHERRYRED_GD": "Cherry Red"
 }
 
 # Load the json object extract from Flashpod Variant API 
@@ -150,7 +151,7 @@ def extract_color_variant():
     
     items = data['data']
 
-    style_to_extract = ['G5000', 'C1717', 'G18500']
+    style_to_extract = ['G5000', 'C1717', 'G18500', 'G18000']
     suffix_to_extract = ['_CC']
     variant_mapping = {}
     for item in items:
@@ -223,7 +224,7 @@ def color_extract():
         data = json.load(f)
 
     strip = ['_GD', '_CC']
-    style_to_extract = ['G5000', 'G18500']
+    style_to_extract = ['G5000', 'G18500', 'G18000']
     color_mapping = {}
     for item in data['data']:
         if 'color' not in item:
@@ -243,6 +244,6 @@ def color_extract():
 
 
 if __name__ == "__main__":
-    
+    color_extract()
     variant_map = extract_color_variant()
     append_to_new_color_mapping(variant_map)

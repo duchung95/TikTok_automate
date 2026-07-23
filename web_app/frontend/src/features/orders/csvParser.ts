@@ -127,7 +127,10 @@ export const parseCsvRows = (
         sub_mapping = mapping['comfort_c1717'];
         style = 'comfort_c1717';
       } else if (productName.includes('Sweatshirt') || productName.includes('Sweatshirts') 
-        || productName.includes('Hoodie') || productName.includes('sweatshirt')) {
+        || productName.includes('sweatshirt')) {
+        sub_mapping = mapping['gildan_g18000'];
+        style = 'gildan_g18000';
+      } else if (productName.includes('Hoodie') || productName.includes('hoodie')) {
         sub_mapping = mapping['gildan_g18500'];
         style = 'gildan_g18500';
       }
