@@ -12,9 +12,9 @@
     "LIGHTPINK_GD": "Lightpink",
     "SAND_GD": "Sand",
     "FORESTGREEN_GD": "Forestgreen",
+    "MILITARYGREEN_GD": "Militarygreen",
     "ASHGREY_GD": "Ashgrey",
     "PURPLE_GD": "Purple",
-    "MILITARYGREEN_GD": "Militarygreen",
     "ORANGE_GD": "Orange",
     "ANTIQUECHERRYRED_GD": "Antiquecherryred",
     "ANTIQUEIRISHGREEN_GD": "Antiqueirishgreen",
@@ -68,5 +68,6 @@
     "HEATHERDEEPROYAL_GD": "Heatherdeeproyal",
     "HEATHERSCARLETRED_GD": "Heatherscarletred",
     "ORCHID_GD": "Orchid",
-    "ROYAL_GD": "Royal"
+    "ROYAL_GD": "Royal",
+    "CHERRYRED_GD": "Cherryred"
 }
