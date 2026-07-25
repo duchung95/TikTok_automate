@@ -129,7 +129,16 @@ COLOR_CODE_MAP = {
     "TURFGREEN_GD": "Turf Green",
     "TWEED_GD": "Tweed",
     "VIOLET_GD": "Violet",
-    "YELLOWHAZE_GD": "Yellow Haze"
+    "YELLOWHAZE_GD": "Yellow Haze",
+    #gildan G18000 variant for sweatshirt and G18500 for hoodie
+    "HEATHERDARKGREEN_GD": "Heather Dark Green",
+    "HEATHERDARKMAROON_GD": "Heather Dark Maroon",
+    "HEATHERDARKNAVY_GD": "Heather Dark Navy",
+    "HEATHERDEEPROYAL_GD": "Heather Deep Royal",
+    "HEATHERSCARLETRED_GD": "Heather Scarlet Red",
+    "ORCHID_GD": "Orchid",
+    "ROYAL_GD": "Royal",
+    "CHERRYRED_GD": "Cherry Red"
 }
 
 # Load the json object extract from Flashpod Variant API 
@@ -142,7 +151,7 @@ def extract_color_variant():
     
     items = data['data']
 
-    style_to_extract = ['G5000', 'C1717']
+    style_to_extract = ['G5000', 'C1717', 'G18500', 'G18000']
     suffix_to_extract = ['_CC']
     variant_mapping = {}
     for item in items:
@@ -208,12 +217,14 @@ def append_to_new_color_mapping(variant_mapping):
 
 # This function extract the Gildan color unique name from the Flashpod API variant return
 # The result will be use to create the COLOR_CODE_MAP at the begin of this script
+# Then we have to go into the file and add space to separate the color into more readable 
+# and match with our color on Tiktok shop 
 def color_extract():
     with open(json_path, 'r') as f:
         data = json.load(f)
 
     strip = ['_GD', '_CC']
-    style_to_extract = ['G5000']
+    style_to_extract = ['G5000', 'G18500', 'G18000']
     color_mapping = {}
     for item in data['data']:
         if 'color' not in item:
@@ -233,6 +244,6 @@ def color_extract():
 
 
 if __name__ == "__main__":
-    
+    color_extract()
     variant_map = extract_color_variant()
     append_to_new_color_mapping(variant_map)

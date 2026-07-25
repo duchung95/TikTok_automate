@@ -442,6 +442,8 @@ export const OrdersTable = ({ items, checked, onToggleChecked, onUpdateItem, fin
   const styleSelectOptions = [
     { value: 'comfort_c1717', label: 'Comfort Colors - C1717' },
     { value: 'gildan_g5000', label: 'Gildan - G5000' },
+    { value: 'gildan_g18000', label: 'Gildan - G18000 Sweatshirt' },
+    { value: 'gildan_g18500', label: 'Gildan - G18500 Hoodie' },
   ];
   const columns = useMemo<ColumnDef<RowData>[]>(() => [
     {
