@@ -32,6 +32,9 @@ def extract_best_seller():
     extract_best_seller_keywords(data, KEYWORDS)
     KEYWORDS = r'nurse|goose|duck'
     extract_best_seller_keywords(data, KEYWORDS)
+
+    KEYWORDS = r''
+    extract_best_seller_keywords(data, KEYWORDS)
     
 
     data['color_name'] = data['Variation'].str.split(',').str[0]
