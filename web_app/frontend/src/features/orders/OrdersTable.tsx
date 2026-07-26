@@ -18,14 +18,16 @@ import { useGoogleAuth } from "../context/google_context/useGoogleAuth";
 import { isRowReady } from './csvParser'
 import { DriveUploadButton } from './DriveUploadButton'
 import { Row } from 'exceljs'
-import { getRowStatus } from '../utils/utils'
+import { getRowStatus } from '../utils/utils';
+import SuggestedDesigns from './SuggestedDesigns'
 
 interface OrdersTableProps {
-  items: OrderItem[]
-  checked: Record<string, boolean>
+  items: OrderItem[];
+  checked: Record<string, boolean>;
   findUnfulfilledOrders?: boolean | undefined;
-  onToggleChecked: (rowKey: string) => void
-  onUpdateItem: (rowIndex: number, patch: Partial<OrderItem>, rowOrderId?: string) => void
+  onToggleChecked: (rowKey: string) => void;
+  onUpdateItem: (rowIndex: number, patch: Partial<OrderItem>, rowOrderId?: string) => void;
+  designsMap: Record<string, any>;
 };
 
 const STATUS_SORT_ORDER: Record<RowStatus, number> = {
@@ -414,7 +416,7 @@ const VariantIdInput = ({ value, onChange }: UVariantIdInputProps) => {
   )
 }
 
-export const OrdersTable = ({ items, checked, onToggleChecked, onUpdateItem, findUnfulfilledOrders }: OrdersTableProps) => {
+export const OrdersTable = ({ items, checked, onToggleChecked, onUpdateItem, findUnfulfilledOrders, designsMap }: OrdersTableProps) => {
   const [sorting, setSorting] = useState<SortingState>([])
 
   // Frozen sort order — only recomputed when a new CSV is imported (items.length changes).
@@ -589,7 +591,24 @@ export const OrdersTable = ({ items, checked, onToggleChecked, onUpdateItem, fin
               const orderColorMap = buildOrderColorMap(items)
               return table.getRowModel().rows.map(row => {
                 const status = getRowStatus(row.original)
-                const bg = getRowBg(row.original, orderColorMap)
+                const bg = getRowBg(row.original, orderColorMap);
+                let productName = row.original.productName || '';
+                let prodcutNameCleaned = productName.trim()
+                  .replace('- HnhDessign Clothing', '')
+                  .replace(' - HnhDessign Clothing', '')
+                  .replace('- Hnh Design Apperal', '')
+                  .replace(' - Hnh Design Apperal', '')
+                  .replace(/,$/, "")
+                  .trimEnd();
+                let skuId = row.original.skuId || '';
+                let suggestedDesigns = [];
+                let skuMatch = false; 
+                if (skuId && skuId in designsMap) {
+                  suggestedDesigns = designsMap[skuId];
+                  skuMatch = true;
+                } else if (prodcutNameCleaned && prodcutNameCleaned in designsMap) {
+                  suggestedDesigns = designsMap[prodcutNameCleaned];
+                }
                 return (
                   <React.Fragment key={row.id}>
                     {/* Row 1 — order info */}
@@ -617,8 +636,8 @@ export const OrdersTable = ({ items, checked, onToggleChecked, onUpdateItem, fin
                         )}
                       </td>
 
-                      <td colSpan={8} style={{ padding: '4px 8px 10px' }}>
-                        <Stack gap={8}>
+                      <td colSpan={7} style={{ padding: '4px 8px 10px' }}>
+                        <Stack gap={7}>
                           {/* Link Label */}
                           <UrlField
                             label="Link Label"
@@ -633,7 +652,20 @@ export const OrdersTable = ({ items, checked, onToggleChecked, onUpdateItem, fin
                             { label: 'Mockup Front', value: row.original.mockupFront, onChange: (val: string) => onUpdateItem(row.original.originalIndex, { mockupFront: val }, findUnfulfilledOrders ? row.original.orderId : undefined) },
                             { label: 'Mockup Back',  value: row.original.mockupBack,  onChange: (val: string) => onUpdateItem(row.original.originalIndex, { mockupBack:  val }, findUnfulfilledOrders ? row.original.orderId : undefined) },
                           ]} />
+                          
                         </Stack>
+                        
+
+                      </td>
+                      <td>
+                        <SuggestedDesigns
+                          key={row.original.originalIndex}
+                          designs={suggestedDesigns}
+                          onUpdateItem={onUpdateItem}
+                          rowIndex={row.original.originalIndex}
+                          rowOrderId={row.original.orderId}
+                          skuMatch={skuMatch}
+                        />
                       </td>
                     </tr>
                   </React.Fragment>

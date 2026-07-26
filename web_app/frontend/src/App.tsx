@@ -1,6 +1,6 @@
 import { AppShell, NavLink, Text, Group, Badge, Button, Burger } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { IconPackage, IconPhoto, IconSettings, IconColorPicker, IconShoppingCartX } from '@tabler/icons-react';
+import { IconPackage, IconPhoto, IconSettings, IconColorPicker, IconShoppingCartX, IconNote } from '@tabler/icons-react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { OrdersPage } from './features/orders/OrdersPage';
 import DesignsPage from './features/designs/DesignsPage';
@@ -11,13 +11,14 @@ import { useGoogleAuth } from './features/context/google_context/useGoogleAuth';
 import { APP_VERSION } from './config';
 import { DesignProvider } from './features/designs/useDesignStore';
 import FindUnfullfillComponent from './features/find_unfullfill/FindUnfullfillComponent';
+import NoteComponent from './features/notes/NoteComponent';
 
 const NAV_ITEMS = [
   { path: '/orders',   label: 'Orders',   icon: IconPackage  },
   { path: '/color-variants', label: 'Colors', icon: IconColorPicker },
   { path: '/designs',  label: 'Designs',  icon: IconPhoto    },
   { path: '/find-unfulfilled', label: 'Chưa fulfill', icon: IconShoppingCartX },
-  { path: '/settings', label: 'Settings', icon: IconSettings },
+  { path: '/notes', label: 'Notes', icon: IconNote }
 ];
 const AppContent = () => {
   const navigate = useNavigate()
@@ -66,6 +67,7 @@ const AppContent = () => {
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/color-variants" element={<ColorVariantTable />} />
           <Route path="/find-unfulfilled" element={<FindUnfullfillComponent />} />
+          <Route path="/notes" element={<NoteComponent />} />
         </Routes>
       </AppShell.Main>
     </AppShell>
