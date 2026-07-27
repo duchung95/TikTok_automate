@@ -120,6 +120,7 @@ export const parseCsvRows = (
         .replace('- Hnh Design Apperal', '')
         .replace(' - Hnh Design Apperal', '')
         .replace(/,$/, "")
+        .replace(/\s+/g, ' ')
         .trimEnd();
       let style = '';
       let sub_mapping = {};
@@ -130,6 +131,9 @@ export const parseCsvRows = (
       const { fixedVariation, variantId } = mapVariant(variation, sub_mapping, colorFix, sizeFix);
       
       const mainImage = imageMapping[productName]
+      if (!imageMapping[productName]) {
+        console.log('IMAGE DOES NOT EXIST: ', JSON.stringify(productName))
+      }
       return {
         isSelected:   false,
         orderId:       (row['Order ID'] ?? '').trim(),
@@ -159,7 +163,7 @@ export const parseCsvRows = (
 
       }
     })
-    .sort((a, b) => parseDate(b.orderDate).getTime() - parseDate(a.orderDate).getTime())
+    .sort((a, b) => parseDate(a.orderDate).getTime() - parseDate(b.orderDate).getTime())
     //.sort((a, b) => b.orderDate.localeCompare(a.orderDate))
 };
 

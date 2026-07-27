@@ -479,6 +479,11 @@ export const OrdersTable = ({ items, checked, onToggleChecked, onUpdateItem, fin
       size: 140,
     },
     {
+      accessorKey: 'phoneNumber',
+      header: 'Phone Number',
+      size: 140,
+    },
+    {
       accessorKey: 'productName',
       header: 'Product Name',
       size: 350,
