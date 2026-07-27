@@ -9,6 +9,7 @@ import { showNotification } from '@mantine/notifications'
 import { useGoogleAuth } from "../context/google_context/useGoogleAuth";
 import { appendToSheet } from './googleSheetExport'
 import { fetchExistingOrderIds } from "../orders/googleSheetExport";
+import { useDesignContext } from '../designs/useDesignContext'
 
 type OrdersPageProps = {
   findUnfulfilledOrders?: boolean;
@@ -35,6 +36,12 @@ export const OrdersPage = (props: OrdersPageProps) => {
   ).length;
 
   const { signedIn, signIn, accessToken } = useGoogleAuth();
+  const { designs, isLoading: isLoadingDesigns, refresh, searchText, 
+    setSearchTextWithCache, fetchDesigns, designsMap } = useDesignContext();
+
+  useEffect(() => {
+    fetchDesigns();
+  }, [accessToken]);
 
   const getFulfilledOrders = async () => {
     if (signedIn && accessToken && props.findUnfulfilledOrders) {
@@ -335,6 +342,7 @@ export const OrdersPage = (props: OrdersPageProps) => {
         onToggleChecked={toggleChecked}
         onUpdateItem={updateItem}
         findUnfulfilledOrders={props.findUnfulfilledOrders}
+        designsMap={designsMap}
       />
     </Stack>
   )

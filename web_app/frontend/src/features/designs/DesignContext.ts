@@ -21,6 +21,7 @@ export interface DesignContextType {
   setSearchTextWithCache: (text: string) => void
   refresh: () => Promise<void>
   fetchDesigns: () => Promise<void>
+  designsMap: Record<string, any>
 }
 
 export const DesignContext = createContext<DesignContextType | undefined>(undefined)

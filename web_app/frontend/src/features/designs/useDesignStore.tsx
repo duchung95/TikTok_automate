@@ -6,6 +6,7 @@ interface DesignCache {
   designs: DesignRow[]
   cachedToken: string
   searchText: string
+  designsMap: Record<string, any>
 }
 
 const STORAGE_KEY = 'design_cache';
@@ -23,6 +24,7 @@ export const DesignProvider = ({ children }: { children: ReactNode }) => {
   const [designs, setDesigns] = useState<DesignRow[]>(() => loadCache()?.designs ?? []);
   const [isLoading, setIsLoading] = useState(false);
   const [searchText, setSearchText] = useState(() => loadCache()?.searchText ?? '');
+  const [designsMap, setDesignsMap] = useState<Record<string, any>>(() => loadCache()?.designsMap ?? {});
 
   const fetchDesigns = useCallback(async (force = false) => {
     const token = localStorage.getItem('google_access_token')
@@ -34,9 +36,44 @@ export const DesignProvider = ({ children }: { children: ReactNode }) => {
 
     setIsLoading(true)
     try {
-      const data = await fetchDesignSheet(token)
-      setDesigns(data)
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ designs: data, cachedToken: token }))
+      const data = await fetchDesignSheet(token);
+      setDesigns(data);
+      
+      const designsMap: Record<string, any> = {};
+      data.forEach((design: any) => {
+        let sku = design.sku?.trim();
+        let productName = design.productName?.trim()
+          .replace('- HnhDessign Clothing', '')
+          .replace(' - HnhDessign Clothing', '')
+          .replace('- Hnh Design Apperal', '')
+          .replace(' - Hnh Design Apperal', '')
+          .replace(/,$/, "")
+          .trimEnd();
+        
+        let frontDesignLink = design.frontDesignLink?.trim();
+        let frontMockupLink = design.frontMockupLink?.trim();
+        let backDesignLink = design.backDesignLink?.trim();
+        let backMockupLink = design.backMockupLink?.trim();
+        let item = {
+          frontDesignLink,
+          frontMockupLink,
+          backDesignLink,
+          backMockupLink,
+          sku,
+        }
+        if (productName in designsMap) {
+          designsMap[productName].push(item);
+        } else {
+          designsMap[productName] = [item];
+        }
+
+        if (!(sku in designsMap)) {
+          designsMap[sku] = [item];
+        }
+
+      });
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ designs: data, cachedToken: token, designsMap }));
+      setDesignsMap(designsMap);
     } finally {
       setIsLoading(false)
     }
@@ -56,7 +93,7 @@ export const DesignProvider = ({ children }: { children: ReactNode }) => {
 
   return (
     <DesignContext.Provider 
-      value={{ designs, isLoading, refresh, searchText, setSearchTextWithCache, fetchDesigns }}
+      value={{ designs, isLoading, refresh, searchText, setSearchTextWithCache, fetchDesigns, designsMap }}
     >
       {children}
     </DesignContext.Provider>
