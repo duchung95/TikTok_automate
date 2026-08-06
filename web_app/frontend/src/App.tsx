@@ -1,6 +1,6 @@
 import { AppShell, NavLink, Text, Group, Badge, Button, Burger } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { IconPackage, IconPhoto, IconSettings, IconColorPicker, IconShoppingCartX, IconNote } from '@tabler/icons-react';
+import { IconPackage, IconPhoto, IconSettings, IconColorPicker, IconShoppingCartX, IconNote, IconNotebook, IconPaint, IconPhotoCheck, IconPhotoAlt, IconWallpaper, IconPictureInPictureOn } from '@tabler/icons-react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { OrdersPage } from './features/orders/OrdersPage';
 import DesignsPage from './features/designs/DesignsPage';
@@ -12,13 +12,17 @@ import { APP_VERSION } from './config';
 import { DesignProvider } from './features/designs/useDesignStore';
 import FindUnfullfillComponent from './features/find_unfullfill/FindUnfullfillComponent';
 import NoteComponent from './features/notes/NoteComponent';
+import AddOrderComponent from './features/add-order/AddOrderComponent';
+import AddDesignComponent from './features/add-design/AddDesignComponent';
 
 const NAV_ITEMS = [
   { path: '/orders',   label: 'Orders',   icon: IconPackage  },
   { path: '/color-variants', label: 'Colors', icon: IconColorPicker },
   { path: '/designs',  label: 'Designs',  icon: IconPhoto    },
   { path: '/find-unfulfilled', label: 'Chưa fulfill', icon: IconShoppingCartX },
-  { path: '/notes', label: 'Notes', icon: IconNote }
+  { path: '/notes', label: 'Notes', icon: IconNote },
+  { path: '/add-order', label: 'Nhập order', icon: IconNotebook},
+  { path: '/add-design', label: 'Thêm design', icon: IconPictureInPictureOn},
 ];
 const AppContent = () => {
   const navigate = useNavigate()
@@ -67,7 +71,10 @@ const AppContent = () => {
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/color-variants" element={<ColorVariantTable />} />
           <Route path="/find-unfulfilled" element={<FindUnfullfillComponent />} />
-          <Route path="/notes" element={<NoteComponent />} />
+           <Route path="/notes" element={<NoteComponent />} />
+          <Route path="/add-order" element={<AddOrderComponent/>}/>
+          <Route path="/add-design" element={<AddDesignComponent/>}/>
+          
         </Routes>
       </AppShell.Main>
     </AppShell>

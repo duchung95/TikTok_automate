@@ -138,6 +138,7 @@ export const parseCsvRows = (
       const { fixedVariation, variantId } = mapVariant(variation, sub_mapping, colorFix, sizeFix);
       
       const mainImage = imageMapping[productName]
+      // Check whether the image exists
       if (!imageMapping[productName]) {
         console.log('IMAGE DOES NOT EXIST: ', JSON.stringify(productName))
       }
